@@ -129,6 +129,6 @@ async def maint(interaction: discord.Interaction):
         await client.change_presence(status=discord.Status.dnd, activity=discord.Game(name="En Maintenance 🛠️"))
     else:
         await interaction.response.send_message("🟢 **Mode Maintenance DÉSACTIVÉ.**\nRetour à la normale !")
-        await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="")Écoute ton empire se construire)
+        await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
 
 client.run(DISCORD_TOKEN)
