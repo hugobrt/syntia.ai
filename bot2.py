@@ -131,4 +131,71 @@ async def maint(interaction: discord.Interaction):
         await interaction.response.send_message("🟢 **Mode Maintenance DÉSACTIVÉ.**\nRetour à la normale !")
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
 
+# --- CLASSE : BOUTONS DE CONFIRMATION CLEAR ---
+class ClearConfirmView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30) # 30 secondes pour décider
+        self.value = None
+
+    # Bouton OUI (Rouge)
+    @discord.ui.button(label="CONFIRMER LA SUPPRESSION", style=discord.ButtonStyle.danger, emoji="🗑️")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        self.stop()
+        # On ne répond rien ici, c'est la commande principale qui va gérer l'action
+
+    # Bouton NON (Gris)
+    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        self.stop()
+        await interaction.response.send_message("Opération annulée. Tes messages sont saufs ! 😅", ephemeral=True)
+
+# --- COMMANDE CLEAR (AVEC CONFIRMATION) ---
+@client.tree.command(name="clear", description="Supprime des messages (Sûr : Ne change pas l'ID)")
+@app_commands.checks.has_permissions(manage_messages=True) # Sécurité Modérateur
+async def clear(interaction: discord.Interaction, nombre: int):
+    # Petite sécurité si on demande 0 ou moins
+    if nombre < 1:
+        await interaction.response.send_message("⛔ Tu dois supprimer au moins 1 message !", ephemeral=True)
+        return
+
+    # 1. On prépare le message de confirmation
+    embed = discord.Embed(
+        title="🗑️ Demande de suppression",
+        description=f"Tu t'apprêtes à supprimer les **{nombre} derniers messages** de ce salon.\n\nCette action est **irréversible**.\nVeux-tu vraiment continuer ?",
+        color=0xe74c3c # Rouge
+    )
+
+    # 2. On affiche le message avec les boutons (Visible seulement par toi)
+    view = ClearConfirmView()
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    # 3. On attend la réponse (le clic)
+    await view.wait()
+
+    # 4. Vérification de ce que tu as cliqué
+    if view.value is None:
+        # Si tu n'as rien fait après 30 secondes
+        await interaction.followup.send("⏳ Trop lent ! J'ai annulé la suppression.", ephemeral=True)
+    
+    elif view.value is True:
+        # --- C'EST PARTI, ON NETTOIE ---
+        # On envoie un petit message "Je travaille..." car purge peut prendre 2-3 secondes
+        await interaction.followup.send("♻️ Nettoyage en cours...", ephemeral=True)
+        
+        # L'action réelle de suppression
+        try:
+            deleted = await interaction.channel.purge(limit=nombre)
+            # Confirmation finale
+            await interaction.followup.send(f"✅ **Terminé !** J'ai supprimé {len(deleted)} messages.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Une erreur est survenue (Messages trop vieux ?) : {e}", ephemeral=True)
+
+# Gestion d'erreur (si pas la permission)
+@clear.error
+async def clear_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("⛔ Tu n'as pas la permission de gérer les messages !", ephemeral=True)
+
 client.run(DISCORD_TOKEN)
