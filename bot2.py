@@ -227,5 +227,6 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         BOT_FAUX_ARRET = False
         # On le remet en mode "Écoute" (ton statut stylé)
         await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
+        await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
 
 client.run(DISCORD_TOKEN)
