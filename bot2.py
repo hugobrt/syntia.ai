@@ -5,6 +5,10 @@ from discord.ext import commands
 from groq import Groq
 import keep_alive  # Le fichier pour empêcher Render de dormir
 
+# --- CONFIGURATION MAINTENANCE ---
+BOT_EN_PAUSE = False # Par défaut, tout le monde peut l'utiliser
+MON_ID_A_MOI = 1096847615775219844 # Ton ID Admin
+
 # --- 1. SÉCURITÉ (On récupère les clés du coffre-fort) ---
 # Au lieu d'écrire la clé en dur, on demande au système de la donner.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -69,6 +73,14 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    # --- BLOC MAINTENANCE ---
+    global BOT_EN_PAUSE
+    if BOT_EN_PAUSE:
+        # Si le bot est en pause ET que ce n'est pas toi qui parles
+        if message.author.id != MON_ID_A_MOI:
+            return # On ignore le message, le bot ne répond pas
+    # ------------------------
+
     if message.channel.id == ID_DU_SALON_AUTO:
         user_roles_ids = [role.id for role in message.author.roles]
         if ID_ROLE_AUTORISE in user_roles_ids:
@@ -85,11 +97,38 @@ async def on_message(message):
 
 @client.tree.command(name="biz", description="Pose une question au coach")
 async def biz(interaction: discord.Interaction, question: str):
+    # --- VÉRIF MAINTENANCE ---
+    global BOT_EN_PAUSE
+    if BOT_EN_PAUSE and interaction.user.id != MON_ID_A_MOI:
+        await interaction.response.send_message("🛠️ **Le bot est actuellement en maintenance.** Reviens plus tard !", ephemeral=True)
+        return
+    # -------------------------
     await interaction.response.defer()
     response_text = ask_groq(question)
     if len(response_text) > 2000:
         await interaction.followup.send(response_text[:2000])
     else:
         await interaction.followup.send(response_text)
+
+# --- COMMANDE MAINTENANCE ---
+@client.tree.command(name="maintenance", description="Active ou désactive le mode maintenance (Admin seul)")
+async def maint(interaction: discord.Interaction):
+    global BOT_EN_PAUSE
+    
+    # 1. Sécurité : Vérifie que c'est toi
+    if interaction.user.id != MON_ID_A_MOI:
+        await interaction.response.send_message("⛔ Tu n'as pas la permission de toucher à ça !", ephemeral=True)
+        return
+
+    # 2. On inverse l'état (Si c'est True ça devient False, et inversement)
+    BOT_EN_PAUSE = not BOT_EN_PAUSE
+
+    if BOT_EN_PAUSE:
+        await interaction.response.send_message("🔴 **Mode Maintenance ACTIVÉ.**\nLe bot ne répond plus aux membres. Toi seul peux encore l'utiliser.")
+        # Optionnel : Changer le statut du bot pour que ça se voie
+        await client.change_presence(status=discord.Status.dnd, activity=discord.Game(name="En Maintenance 🛠️"))
+    else:
+        await interaction.response.send_message("🟢 **Mode Maintenance DÉSACTIVÉ.**\nRetour à la normale !")
+        await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="vos questions"))
 
 client.run(DISCORD_TOKEN)
