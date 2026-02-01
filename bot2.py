@@ -9,6 +9,9 @@ import keep_alive  # Le fichier pour empêcher Render de dormir
 BOT_EN_PAUSE = False # Par défaut, tout le monde peut l'utiliser
 MON_ID_A_MOI = 1096847615775219844 # Ton ID Admin
 
+# --- ÉTAT DU BOT (Mode Fantôme) ---
+BOT_FAUX_ARRET = False # Par défaut, il est allumé pour tout le monde
+
 # --- 1. SÉCURITÉ (On récupère les clés du coffre-fort) ---
 # Au lieu d'écrire la clé en dur, on demande au système de la donner.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -197,5 +200,32 @@ async def clear(interaction: discord.Interaction, nombre: int):
 async def clear_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("⛔ Tu n'as pas la permission de gérer les messages !", ephemeral=True)
+
+# --- COMMANDE POWER (ON/OFF) ---
+@client.tree.command(name="power", description="Simule un arrêt du bot (Invisible + Silence radio)")
+@app_commands.choices(etat=[
+    app_commands.Choice(name="🟢 ON (Allumer le bot)", value="on"),
+    app_commands.Choice(name="🔴 OFF (Éteindre / Mode Invisible)", value="off")
+])
+async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]):
+    global BOT_FAUX_ARRET
+    
+    # SÉCURITÉ : Seul toi peux toucher à ça
+    if interaction.user.id != MON_ID_A_MOI:
+        await interaction.response.send_message("⛔ Touche pas à l'interrupteur !", ephemeral=True)
+        return
+
+    if etat.value == "off":
+        # MODE ÉTEINT
+        BOT_FAUX_ARRET = True
+        # On le met en "Invisible" (Gris)
+        await client.change_presence(status=discord.Status.invisible)
+        await interaction.response.send_message("🔌 **Bzzzzt...** J'ai simulé une panne. Je suis invisible et je ne réponds plus aux autres.", ephemeral=True)
+    
+    else:
+        # MODE ALLUMÉ
+        BOT_FAUX_ARRET = False
+        # On le remet en mode "Écoute" (ton statut stylé)
+        await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
 
 client.run(DISCORD_TOKEN)
