@@ -152,7 +152,7 @@ class ClearConfirmView(discord.ui.View):
         await interaction.response.send_message("Opération annulée. Tes messages sont saufs ! 😅", ephemeral=True)
 
 # --- COMMANDE CLEAR (AVEC CONFIRMATION) ---
-@client.tree.command(name="clear", description="Supprime des messages (Sûr : Ne change pas l'ID)")
+@client.tree.command(name="clear", description="Supprime un certains nombres de messages")
 @app_commands.checks.has_permissions(manage_messages=True) # Sécurité Modérateur
 async def clear(interaction: discord.Interaction, nombre: int):
     # Petite sécurité si on demande 0 ou moins
