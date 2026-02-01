@@ -71,6 +71,11 @@ client = Client()
 async def on_ready():
     print(f'✅ Bot connecté : {client.user.name}')
 
+# 2. CHARGEMENT DU PANEL (C'est ça le secret !)
+    client.add_view(AdminPanelView()) # <--- AJOUTE CETTE LIGNE
+    
+    print("🚀 Panel chargé et prêt !")
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -228,5 +233,101 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         # On le remet en mode "Écoute" (ton statut stylé)
         await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
+
+# --- 1. LE FORMULAIRE (MODAL) ---
+class EmbedBuilderModal(discord.ui.Modal, title="🛠️ Créateur d'Embed"):
+    # Les champs à remplir
+    titre = discord.ui.TextInput(
+        label="Titre", placeholder="Ex: Règlement du serveur", required=True
+    )
+    
+    description = discord.ui.TextInput(
+        label="Description", placeholder="Écris ton texte ici...", style=discord.TextStyle.paragraph, required=True
+    )
+    
+    couleur = discord.ui.TextInput(
+        label="Couleur (Code Hex ou 'rouge', 'bleu')", placeholder="Ex: FF0000 ou bleu", required=False, max_length=10
+    )
+    
+    image = discord.ui.TextInput(
+        label="Image (Lien URL)", placeholder="https://...", required=False
+    )
+    
+    footer = discord.ui.TextInput(
+        label="Pied de page (Footer)", placeholder="Ex: La Direction", required=False
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Gestion de la couleur
+        color_map = {"rouge": 0xe74c3c, "bleu": 0x3498db, "vert": 0x2ecc71, "jaune": 0xf1c40f, "noir": 0x000000}
+        color_value = 0x2b2d31 # Gris foncé par défaut
+        
+        raw_color = self.couleur.value.lower().strip()
+        if raw_color in color_map:
+            color_value = color_map[raw_color]
+        elif raw_color:
+            try:
+                # On essaie de convertir le Hex (ex: FFFFFF)
+                color_value = int(raw_color.replace("#", ""), 16)
+            except:
+                pass # Si ça rate, on garde le gris
+
+        # Construction de l'Embed
+        embed = discord.Embed(
+            title=self.titre.value,
+            description=self.description.value,
+            color=color_value
+        )
+        
+        if self.image.value:
+            embed.set_image(url=self.image.value)
+            
+        if self.footer.value:
+            embed.set_footer(text=self.footer.value)
+
+        # On l'envoie dans le salon où tu as cliqué
+        await interaction.channel.send(embed=embed)
+        
+        # Confirmation discrète que c'est fait
+        await interaction.response.send_message("✅ Embed publié avec succès !", ephemeral=True)
+
+# --- 2. LE PANNEAU DE BOUTONS (PERSISTANT) ---
+class AdminPanelView(discord.ui.View):
+    def __init__(self):
+        # timeout=None est CRUCIAL pour que les boutons marchent à l'infini
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🎨 Créer un Embed", style=discord.ButtonStyle.primary, custom_id="panel:embed", emoji="📝")
+    async def create_embed(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Ouvre le formulaire
+        await interaction.response.send_modal(EmbedBuilderModal())
+
+    @discord.ui.button(label="🧹 Clear 10", style=discord.ButtonStyle.danger, custom_id="panel:clear", emoji="🗑️")
+    async def fast_clear(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Petit raccourci pour nettoyer vite fait
+        await interaction.response.defer(ephemeral=True)
+        deleted = await interaction.channel.purge(limit=10)
+        await interaction.followup.send(f"🧹 {len(deleted)} messages supprimés.", ephemeral=True)
+
+    @discord.ui.button(label="📡 Ping", style=discord.ButtonStyle.secondary, custom_id="panel:ping", emoji="📶")
+    async def ping_bot(self, interaction: discord.Interaction, button: discord.ui.Button):
+        latency = round(client.latency * 1000)
+        await interaction.response.send_message(f"🏓 Pong ! Latence : {latency}ms", ephemeral=True)
+
+# --- 3. LA COMMANDE POUR INSTALLER LE PANEL ---
+@client.tree.command(name="setup_panel", description="Installe le panneau d'administration dans ce salon")
+@app_commands.checks.has_permissions(administrator=True)
+async def setup_panel(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎛️ Panneau de Contrôle Staff",
+        description="Cliquez sur les boutons ci-dessous pour effectuer des actions rapides.",
+        color=0x2b2d31
+    )
+    embed.add_field(name="🎨 Créer un Embed", value="Ouvre un formulaire pour poster une annonce stylée.", inline=True)
+    embed.add_field(name="🧹 Clear 10", value="Supprime les 10 derniers messages ici.", inline=True)
+    embed.set_thumbnail(url=client.user.avatar.url if client.user.avatar else None)
+    
+    await interaction.channel.send(embed=embed, view=AdminPanelView())
+    await interaction.response.send_message("✅ Panel installé !", ephemeral=True)
 
 client.run(DISCORD_TOKEN)
