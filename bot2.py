@@ -15,7 +15,7 @@ if not DISCORD_TOKEN or not GROQ_API_KEY:
     print("⚠️ ERREUR : Les clés API ne sont pas détectées ! Vérifie les variables d'environnement.")
 
 # --- 2. CONFIGURATIONS ---
-ID_DU_SALON_AUTO = 1459867053782601902
+ID_DU_SALON_AUTO = 1459872352249712741
 ID_ROLE_AUTORISE = 1459868384568283207
 
 SYSTEM_INSTRUCTION = """
