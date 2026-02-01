@@ -237,18 +237,15 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         # On le remet en mode "Écoute" (ton statut stylé)
         await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
+
 # --- 1. GESTION DES BOUTONS DE RÔLE (CUSTOM) ---
-# Cette vue gère les clics sur les boutons "Rôle" créés par le panel
 class DynamicRoleView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    # Cette fonction écoute TOUS les boutons qui commencent par "role:"
-    # C'est magique : pas besoin de redémarrer pour les nouveaux boutons
+    # Leurre pour les boutons persistants
     @discord.ui.button(label="Vérifier", style=discord.ButtonStyle.success, custom_id="persistent_role_button")
     async def role_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Cette fonction est un "leurre", la vraie magie se passe dans le custom_id
-        # Mais pour faire simple, on va utiliser une astuce dans on_interaction
         pass
 
 # --- 2. LES FORMULAIRES (MODALS) ---
@@ -257,18 +254,16 @@ class DynamicRoleView(discord.ui.View):
 class EmbedBuilderModal(discord.ui.Modal, title="🎨 Créateur d'Embed Avancé"):
     def __init__(self, target_channel):
         super().__init__()
-        self.target_channel = target_channel # On retient le salon choisi
+        self.target_channel = target_channel
 
     titre = discord.ui.TextInput(label="Titre", placeholder="Titre de l'annonce", required=True)
     description = discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph, required=True)
     couleur = discord.ui.TextInput(label="Couleur (Hex)", placeholder="Ex: FF0000 (Rouge)", required=False, max_length=6)
     
-    # Configuration du bouton personnalisé
     btn_label = discord.ui.TextInput(label="Nom du Bouton (Optionnel)", placeholder="Ex: Rejoindre le site / Recevoir le rôle", required=False)
     btn_value = discord.ui.TextInput(label="Lien URL ou ID du Rôle", placeholder="https://google.com OU 145986...", required=False)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # 1. Gestion couleur
         color_int = 0x2b2d31
         if self.couleur.value:
             try:
@@ -276,7 +271,6 @@ class EmbedBuilderModal(discord.ui.Modal, title="🎨 Créateur d'Embed Avancé"
             except:
                 pass
 
-        # 2. Création de l'Embed
         embed = discord.Embed(
             title=self.titre.value,
             description=self.description.value,
@@ -284,31 +278,25 @@ class EmbedBuilderModal(discord.ui.Modal, title="🎨 Créateur d'Embed Avancé"
         )
         embed.set_footer(text=f"Envoyé par {interaction.user.name}")
 
-        # 3. Gestion du Bouton Personnalisé
         view = None
         if self.btn_label.value and self.btn_value.value:
-            view = discord.ui.View(timeout=None) # Vue infinie
-            
+            view = discord.ui.View(timeout=None)
             valeur = self.btn_value.value.strip()
             
             if valeur.startswith("http"):
-                # C'est un LIEN
                 view.add_item(discord.ui.Button(label=self.btn_label.value, style=discord.ButtonStyle.link, url=valeur))
             elif valeur.isdigit():
-                # C'est un ID DE RÔLE (Chiffres uniquement)
-                # On crée un bouton avec un ID spécial : "role:ID_DU_ROLE"
                 custom_id = f"role:{valeur}"
                 view.add_item(discord.ui.Button(label=self.btn_label.value, style=discord.ButtonStyle.success, custom_id=custom_id))
             else:
-                await interaction.response.send_message("❌ Le champ 'Lien ou ID' est invalide.", ephemeral=True)
+                await interaction.response.send_message("❌ Champ 'Lien ou ID' invalide.", ephemeral=True)
                 return
 
-        # 4. Envoi dans le salon choisi
         try:
             await self.target_channel.send(embed=embed, view=view)
             await interaction.response.send_message(f"✅ Embed envoyé dans {self.target_channel.mention} !", ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(f"❌ Erreur : Je n'arrive pas à écrire dans ce salon ({e}).", ephemeral=True)
+            await interaction.response.send_message(f"❌ Erreur : Impossible d'écrire dans ce salon ({e}).", ephemeral=True)
 
 # FORMULAIRE : CLEAR (NOMBRE)
 class ClearModal(discord.ui.Modal, title="🧹 Nettoyage"):
@@ -321,7 +309,7 @@ class ClearModal(discord.ui.Modal, title="🧹 Nettoyage"):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             nb = int(self.nombre.value)
-            await interaction.response.defer(ephemeral=True) # On patiente
+            await interaction.response.defer(ephemeral=True)
             deleted = await self.target_channel.purge(limit=nb)
             await interaction.followup.send(f"✅ J'ai supprimé {len(deleted)} messages dans {self.target_channel.mention}.", ephemeral=True)
         except ValueError:
@@ -329,16 +317,15 @@ class ClearModal(discord.ui.Modal, title="🧹 Nettoyage"):
         except Exception as e:
             await interaction.response.send_message(f"❌ Erreur : {e}", ephemeral=True)
 
-# --- 3. SÉLECTEUR DE SALON (ÉTAPE INTERMÉDIAIRE) ---
+# --- 3. SÉLECTEUR DE SALON ---
 class ChannelSelectView(discord.ui.View):
     def __init__(self, action_type):
         super().__init__(timeout=60)
-        self.action_type = action_type # "embed" ou "clear"
+        self.action_type = action_type
 
-    # Menu déroulant pour choisir les salons textuels
     @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text], placeholder="Choisis le salon cible...")
     async def select_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
-        target_channel = select.values[0] # Le salon choisi
+        target_channel = select.values[0]
         
         if self.action_type == "embed":
             await interaction.response.send_modal(EmbedBuilderModal(target_channel))
@@ -350,25 +337,28 @@ class AdminPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
+    # Bouton 1 : Embed
     @discord.ui.button(label="🎨 Créer un Embed", style=discord.ButtonStyle.primary, custom_id="panel:embed", emoji="📝")
     async def create_embed(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # On ouvre d'abord le sélecteur de salon
         await interaction.response.send_message("📍 **Étape 1 :** Choisis le salon où envoyer le message.", view=ChannelSelectView("embed"), ephemeral=True)
 
+    # Bouton 2 : Clear
     @discord.ui.button(label="🧹 Clear Salon", style=discord.ButtonStyle.danger, custom_id="panel:clear", emoji="🗑️")
     async def fast_clear(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # On ouvre le sélecteur de salon
         await interaction.response.send_message("📍 **Étape 1 :** Choisis le salon à nettoyer.", view=ChannelSelectView("clear"), ephemeral=True)
 
-# --- 5. LOGIQUE DES BOUTONS DE RÔLE (Le Cerveau) ---
-# Ajoute cette fonction à ton bot pour qu'il comprenne quand on clique sur un bouton "role:..."
+    # Bouton 3 : PING (Il est de retour !)
+    @discord.ui.button(label="📡 Ping", style=discord.ButtonStyle.secondary, custom_id="panel:ping", emoji="📶")
+    async def ping_bot(self, interaction: discord.Interaction, button: discord.ui.Button):
+        latency = round(client.latency * 1000)
+        await interaction.response.send_message(f"🏓 Pong ! Latence : {latency}ms", ephemeral=True)
+
+# --- 5. LOGIQUE DES BOUTONS DE RÔLE ---
 @client.event
 async def on_interaction(interaction: discord.Interaction):
-    # Si c'est un clic sur un bouton
     if interaction.type == discord.InteractionType.component and "custom_id" in interaction.data:
         custom_id = interaction.data["custom_id"]
         
-        # Si le bouton commence par "role:" (ex: role:123456789)
         if custom_id.startswith("role:"):
             role_id = int(custom_id.split(":")[1])
             role = interaction.guild.get_role(role_id)
@@ -388,9 +378,11 @@ async def on_interaction(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 async def setup_panel(interaction: discord.Interaction):
     embed = discord.Embed(title="🎛️ Command Center", description="Outil de gestion du serveur.", color=0x2b2d31)
-    embed.add_field(name="🎨 Créer Embed", value="Envoie un embed avec bouton (Lien ou Rôle) dans un salon spécifique.", inline=False)
-    embed.add_field(name="🧹 Clear", value="Supprime des messages dans un salon spécifique.", inline=False)
+    embed.add_field(name="🎨 Créer Embed", value="Envoie un embed avec bouton (Lien ou Rôle) dans un salon spécifique.", inline=True)
+    embed.add_field(name="🧹 Clear", value="Supprime des messages dans un salon spécifique.", inline=True)
+    embed.add_field(name="📡 Ping", value="Affiche la latence du bot.", inline=True)
+    
     await interaction.channel.send(embed=embed, view=AdminPanelView())
-    await interaction.response.send_message("Panel installé.", ephemeral=True)
+    await interaction.response.send_message("✅ Panel installé.", ephemeral=True)
 
 client.run(DISCORD_TOKEN)
