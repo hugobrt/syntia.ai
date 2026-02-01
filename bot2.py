@@ -124,7 +124,7 @@ async def maint(interaction: discord.Interaction):
     BOT_EN_PAUSE = not BOT_EN_PAUSE
 
     if BOT_EN_PAUSE:
-        await interaction.response.send_message("🔴 **Mode Maintenance ACTIVÉ.**\nLe bot ne répond plus aux membres. Toi seul peux encore l'utiliser.")
+        await interaction.response.send_message("🔴 **Mode Maintenance ACTIVÉ.**\nje ne peux vous repondre actuellement")
         # Optionnel : Changer le statut du bot pour que ça se voie
         await client.change_presence(status=discord.Status.dnd, activity=discord.Game(name="En Maintenance 🛠️"))
     else:
