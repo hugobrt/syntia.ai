@@ -10,7 +10,7 @@ import json
 # 🛠️ CONFIGURATION (METS TES IDS ICI !)
 # ====================================================
 ID_ROLE_CHATBOT = 1459868384568283207   # ID du rôle autorisé
-ID_SALON_DEMANDES = 1459872352249712741 # ID Salon Admin pour les demandes
+ID_SALON_DEMANDES = 1467977403983991050 # ID Salon Admin pour les demandes
 
 # ====================================================
 # 1. GESTIONNAIRE RSS
@@ -339,3 +339,4 @@ class AdminPanel(commands.Cog):
         await i.response.send_message("✅", ephemeral=True)
 
 async def setup(bot): await bot.add_cog(AdminPanel(bot))
+
