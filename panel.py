@@ -13,7 +13,7 @@ ID_ROLE_CHATBOT = 1459868384568283207   # ID Role acces bot
 ID_SALON_DEMANDES = 1467977403983991050 # ID Salon reception demandes
 
 # ====================================================
-# 1. GESTIONNAIRE RSS (JSON)
+# 1. GESTIONNAIRE RSS (Celui qui marche bien)
 # ====================================================
 def save_local(feeds):
     try:
@@ -204,7 +204,6 @@ class ChanSel(discord.ui.View):
         c=i.guild.get_channel(s.values[0].id)
         if self.a=="embed": await i.response.send_modal(EmbedModal(c))
         elif self.a=="say": await i.response.send_modal(SayModal(c))
-        elif self.a=="ticket": v=discord.ui.View(timeout=None); v.add_item(discord.ui.Button(label="Ouvrir", style=discord.ButtonStyle.primary, custom_id="sys:ticket", emoji="📩")); await c.send(embed=discord.Embed(title="Ticket", desc="Support", color=0x3498db), view=v); await i.response.send_message("✅", ephemeral=True)
         elif self.a=="nuke": nc=await c.clone(reason="Nuke"); await c.delete(); await nc.send(embed=discord.Embed(description=f"☢️ **Salon nettoyé par** {i.user.mention}", color=0xff0000))
         elif self.a=="poll": await i.response.send_modal(PollModal(c))
         elif self.a=="clear": await i.response.send_modal(ClearModal(c))
@@ -212,6 +211,16 @@ class ChanSel(discord.ui.View):
         elif self.a=="lock":
             ov=c.overwrites_for(i.guild.default_role); ov.send_messages = not ov.send_messages
             await c.set_permissions(i.guild.default_role, overwrite=ov); await i.response.send_message(f"🔒 Lock: {not ov.send_messages}", ephemeral=True)
+        
+        # --- FIX TICKET INSTALL ---
+        elif self.a=="ticket": 
+            await i.response.defer(ephemeral=True) # <-- LA CORRECTION EST ICI
+            try:
+                v=discord.ui.View(timeout=None)
+                v.add_item(discord.ui.Button(label="Ouvrir", style=discord.ButtonStyle.primary, custom_id="sys:ticket", emoji="📩"))
+                await c.send(embed=discord.Embed(title="Ticket", desc="Support", color=0x3498db), view=v)
+                await i.followup.send("✅", ephemeral=True)
+            except: await i.followup.send("❌ Erreur permission", ephemeral=True)
 
 class UserSel(discord.ui.View):
     def __init__(self, a): super().__init__(timeout=60); self.a=a
@@ -219,7 +228,7 @@ class UserSel(discord.ui.View):
     async def s(self, i, s):
         u=s.values[0]
         if self.a=="verify":
-            if i.guild.get_role(ID_ROLE_CHATBOT) in u.roles: await i.response.send_message(f"✅ **{u.name}** a l'accès.", ephemeral=True)
+            if i.guild.get_role(ID_ROLE_CHATBOT) in u.roles: await i.response.send_message(f"✅ **{u.name}** a bien l'accès.", ephemeral=True)
             else: await i.response.send_message(f"❌ **{u.name}** N'A PAS l'accès.", ephemeral=True)
         elif self.a=="info": await i.response.send_message(embed=discord.Embed(title=f"👤 {u.name}", description=f"ID: {u.id}\nCréé: {u.created_at.strftime('%d/%m/%Y')}\nRejoint: {u.joined_at.strftime('%d/%m/%Y')}", color=u.color).set_thumbnail(url=u.display_avatar.url), ephemeral=True)
         else: await i.response.send_modal(SanctionModal(u, self.a))
@@ -239,8 +248,10 @@ class AdminPanelView(discord.ui.View):
     async def b03(self, i, b): await i.response.send_modal(StatusModal())
     @discord.ui.button(label="Stats", style=discord.ButtonStyle.secondary, row=0, emoji="📊")
     async def b04(self, i, b): await i.response.send_message(f"📊 **{i.guild.member_count}** membres", ephemeral=True)
+    
+    # --- FIX PING ICI ---
     @discord.ui.button(label="Ping", style=discord.ButtonStyle.secondary, row=0, emoji="📡")
-    async def b05(self, i, b): await i.response.send_message(f"🏓 {round(i.client.latency*1000)}ms", ephemeral=True)
+    async def b05(self, i, b): await i.response.send_message(f"🏓 **Pong !** {round(i.client.latency*1000)}ms", ephemeral=True)
 
     # LIGNE 1 : CONTENU & COMMS
     @discord.ui.button(label="Embed", style=discord.ButtonStyle.primary, row=1, emoji="🎨")
@@ -288,7 +299,7 @@ class AdminPanel(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.bot.add_view(AdminPanelView()); self.bot.add_view(TicketControlView()); self.bot.add_view(RequestAccessView())
-        print("🛡️ Panel V17 (TOTAL) Ready.")
+        print("🛡️ Panel V17.5 (FIXED) Ready.")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -303,10 +314,13 @@ class AdminPanel(commands.Cog):
             if r in i.user.roles: await i.user.remove_roles(r); await i.response.send_message(f"➖ {r.name}", ephemeral=True)
             else: await i.user.add_roles(r); await i.response.send_message(f"➕ {r.name}", ephemeral=True)
         elif cid.startswith("act:msg:"): await i.response.send_message(cid.split(":",2)[2], ephemeral=True)
+        
+        # --- FIX TICKET OPEN ---
         elif cid=="sys:ticket":
+            await i.response.defer(ephemeral=True) # <-- LA CORRECTION EST ICI AUSSI
             g=i.guild; p={g.default_role: discord.PermissionOverwrite(read_messages=False), i.user: discord.PermissionOverwrite(read_messages=True), g.me: discord.PermissionOverwrite(read_messages=True)}
             c=await g.create_text_channel(f"ticket-{i.user.name}", overwrites=p, category=i.channel.category)
-            await i.response.send_message(f"✅ Ticket : {c.mention}", ephemeral=True)
+            await i.followup.send(f"✅ Ticket : {c.mention}", ephemeral=True)
             await c.send(embed=discord.Embed(title="Ticket Support", description=f"Bonjour {i.user.mention}.", color=0x3498db), view=TicketControlView())
 
     @app_commands.command(name="connect")
