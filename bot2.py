@@ -6,6 +6,7 @@ from groq import Groq
 import keep_alive  # Le fichier pour empêcher Render de dormir
 import feedparser
 from discord.ext import tasks # Nécessaire pour la boucle automatique
+import json
 
 # --- CONFIGURATION MAINTENANCE ---
 BOT_EN_PAUSE = False # Par défaut, tout le monde peut l'utiliser
@@ -56,6 +57,19 @@ def ask_groq(prompt):
     except Exception as e:
         return f"❌ Erreur IA : {e}"
 
+# --- GESTION JSON RSS (Nouveau bloc à ajouter) ---
+FEEDS_FILE = "feeds.json"
+
+def load_feeds():
+    default_feeds = ["https://www.bfmtv.com/rss/economie/"] # Lien de secours
+    if os.path.exists(FEEDS_FILE):
+        try:
+            with open(FEEDS_FILE, "r") as f:
+                saved = json.load(f)
+                return list(set(default_feeds + saved))
+        except: pass
+    return default_feeds
+
 # --- 5. SETUP DISCORD (MODIFIÉ POUR PANEL) ---
 class Client(commands.Bot):
     def __init__(self):
@@ -63,7 +77,9 @@ class Client(commands.Bot):
         intents.message_content = True
         intents.members = True # Important pour gérer les rôles
         super().__init__(command_prefix="!", intents=intents)
-
+        self.rss_feeds = load_feeds() 
+        self.last_posted_links = {}
+    
     async def setup_hook(self):
         # C'est ICI qu'on connecte le fichier panel.py
         try:
@@ -243,56 +259,45 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         # On le remet en mode "Écoute" (ton statut stylé)
         await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
-# --- MODULE RSS BUSINESS ---
-ID_SALON_RSS = 1457478400888279282  # ⚠️ REMPLACE PAR TON ID DE SALON
-RSS_URL = "https://www.bfmtv.com/rss/economie/" # Source : Les Echos
 
-last_posted_link = None # Variable mémoire pour ne pas spammer
+# --- MODULE RSS BUSINESS (MULTI-FLUX) ---
+ID_SALON_RSS = 1457478400888279282 
 
-@tasks.loop(minutes=30) # Le bot vérifie toutes les 30 minutes
+@tasks.loop(minutes=30)
 async def veille_business():
-    global last_posted_link
     channel = client.get_channel(ID_SALON_RSS)
-    
-    if not channel:
-        print("⚠️ Erreur RSS : Salon introuvable. Vérifie l'ID.")
-        return
+    if not channel: return
 
-    try:
-        # 1. On récupère le flux
-        feed = feedparser.parse(RSS_URL)
-        if not feed.entries:
-            return
-        
-        # 2. On regarde le tout dernier article
-        latest = feed.entries[0]
-        
-        # 3. Logique de publication
-        if last_posted_link is None:
-            # Premier lancement : on mémorise juste le dernier lien sans poster
-            last_posted_link = latest.link
-        
-        elif latest.link != last_posted_link:
-            # C'est une NOUVELLE news !
-            last_posted_link = latest.link
+    # On parcourt TOUS les liens chargés dans le bot
+    for url in client.rss_feeds:
+        try:
+            feed = feedparser.parse(url)
+            if not feed.entries: continue
             
-            # 4. Création de l'annonce
-            embed = discord.Embed(
-                title="📰 Flash Éco",
-                description=f"**[{latest.title}]({latest.link})**", # Titre cliquable
-                color=0x0055ff
-            )
-            embed.set_footer(text="Source : Les Echos • Actualité Business")
+            latest = feed.entries[0]
             
-            # On essaie de trouver une image (si dispo dans le flux)
-            if 'media_content' in latest and latest.media_content:
-                embed.set_image(url=latest.media_content[0]['url'])
-            
-            await channel.send(embed=embed)
-            print(f"✅ RSS Posté : {latest.title}")
+            # Initialisation mémoire pour ce flux spécifique
+            if url not in client.last_posted_links:
+                client.last_posted_links[url] = latest.link
+                continue
 
-    except Exception as e:
-        print(f"❌ Bug RSS : {e}")
+            # Vérification nouveauté
+            if latest.link != client.last_posted_links[url]:
+                client.last_posted_links[url] = latest.link
+                
+                embed = discord.Embed(
+                    title=f"📰 {feed.feed.get('title', 'Flash Info')}",
+                    description=f"**[{latest.title}]({latest.link})**",
+                    color=0x0055ff
+                )
+                embed.set_footer(text="Actualité Automatique")
+                if 'media_content' in latest: 
+                    embed.set_image(url=latest.media_content[0]['url'])
+                
+                await channel.send(embed=embed)
+
+        except Exception as e: 
+            print(f"⚠️ Erreur flux {url}: {e}")
 
 # --- COMMANDE TEST RSS (A copier en bas) ---
 @client.tree.command(name="test_rss", description="Force l'envoi du dernier article RSS maintenant")
