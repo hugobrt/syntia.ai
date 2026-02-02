@@ -237,7 +237,7 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
 # --- MODULE RSS BUSINESS ---
 ID_SALON_RSS = 1457478400888279282  # ⚠️ REMPLACE PAR TON ID DE SALON
-RSS_URL = "https://services.lesechos.fr/rss/les-echos-economie.xml" # Source : Les Echos
+RSS_URL = "https://www.bfmtv.com/rss/economie/" # Source : Les Echos
 
 last_posted_link = None # Variable mémoire pour ne pas spammer
 
