@@ -9,8 +9,8 @@ import json
 # ====================================================
 # 🛠️ CONFIGURATION (METS TES IDS ICI !)
 # ====================================================
-ID_ROLE_CHATBOT = 000000000000000000   # L'ID du rôle qui autorise à parler au bot
-ID_SALON_DEMANDES = 000000000000000000 # L'ID du salon où tu reçois les demandes d'accès
+ID_ROLE_CHATBOT = 1459868384568283207   # L'ID du rôle qui autorise à parler au bot
+ID_SALON_DEMANDES = 1467977403983991050 # L'ID du salon où tu reçois les demandes d'accès
 
 # ====================================================
 # 1. GESTIONNAIRE RSS (MODE JSON MEMOIRE)
@@ -224,3 +224,4 @@ class AdminPanel(commands.Cog):
         await i.response.send_message("✅ Panel déployé.", ephemeral=True)
 
 async def setup(bot): await bot.add_cog(AdminPanel(bot))
+
