@@ -56,7 +56,14 @@ class ButtonTypeView(discord.ui.View):
     async def tm(self, i, b): await i.response.send_modal(ButtonConfigModal("msg", self.e, self.l, self.c))
 
 class ButtonConfigModal(discord.ui.Modal):
-    def __init__(self, t, e, l, c): super().__init__(title="Config"); self.t=t; self.e=e; self.l=l; self.c=c; self.v=discord.ui.TextInput(label="Valeur (URL ou Texte)")
+    def __init__(self, t, e, l, c): 
+        super().__init__(title="Config")
+        self.t=t; self.e=e; self.l=l; self.c=c
+        # --- CORRECTION DU BUG ICI ---
+        self.v=discord.ui.TextInput(label="Valeur (URL ou Texte)")
+        self.add_item(self.v) # C'est cette ligne qui manquait !
+        # -----------------------------
+
     async def on_submit(self, i):
         vi=discord.ui.View(timeout=None)
         if self.t=="link": vi.add_item(discord.ui.Button(label=self.l, url=self.v.value))
@@ -66,7 +73,7 @@ class ButtonConfigModal(discord.ui.Modal):
 # ====================================================
 # 3. MODALS (EMBED, SAY, STATUS, SANCTION)
 # ====================================================
-class EmbedModal(discord.ui.Modal, title="🎨 Embed V9"):
+class EmbedModal(discord.ui.Modal, title="🎨 Embed V11"):
     def __init__(self, c): super().__init__(); self.c=c
     t=discord.ui.TextInput(label="Titre"); d=discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph)
     col=discord.ui.TextInput(label="Couleur Hex", required=False); img=discord.ui.TextInput(label="Image URL", required=False)
@@ -135,7 +142,9 @@ class ChanSel(discord.ui.View):
         if self.a=="embed": await i.response.send_modal(EmbedModal(c))
         elif self.a=="say": await i.response.send_modal(SayModal(c))
         elif self.a=="nuke":
-            nc=await c.clone(reason="Nuke"); await c.delete(); await nc.send("https://media1.tenor.com/m/X9e7fQ0tK78AAAAC/nuclear-explosion-bomb.gif"); await nc.send(f"☢️ Clean par {i.user.mention}")
+            nc=await c.clone(reason="Nuke"); await c.delete()
+            embed_nuke = discord.Embed(description=f"☢️ **Salon nettoyé par** {i.user.mention}", color=0xff0000)
+            await nc.send(embed=embed_nuke)
         elif self.a=="ticket":
             v=discord.ui.View(timeout=None); v.add_item(discord.ui.Button(label="Ouvrir Ticket", style=discord.ButtonStyle.primary, custom_id="sys:ticket", emoji="📩"))
             await c.send(embed=discord.Embed(title="🎫 Support", description="Ouvrir un ticket.", color=0x3498db), view=v); await i.response.send_message("✅", ephemeral=True)
@@ -170,7 +179,7 @@ class AdminPanelView(discord.ui.View):
     @discord.ui.button(label="Unban ID", style=discord.ButtonStyle.success, row=2, emoji="🔓")
     async def b9(self, i, b): await i.response.send_modal(UnbanModal())
     @discord.ui.button(label="Ping", style=discord.ButtonStyle.secondary, row=2, emoji="📡")
-    async def b10(self, i, b): await i.response.send_message(f"🏓 {round(i.client.latency*1000)}ms", ephemeral=True)
+    async def b10(self, i, b): await i.response.send_message(f"🏓 **Pong !** {round(i.client.latency*1000)}ms", ephemeral=True)
     @discord.ui.button(label="Info", style=discord.ButtonStyle.secondary, row=2, emoji="📊")
     async def b11(self, i, b): 
         g=i.guild; e=discord.Embed(title=f"📊 {g.name}", color=0x00ff00); e.add_field(name="Membres", value=g.member_count)
@@ -185,10 +194,9 @@ class AdminPanelView(discord.ui.View):
     @discord.ui.button(label="NUKE", style=discord.ButtonStyle.danger, row=3, emoji="☢️")
     async def b14(self, i, b): await i.response.send_message("⚠️ **NUKE :** Où ?", view=ChanSel("nuke"), ephemeral=True)
     
-    # --- LE NOUVEAU BOUTON FERMER ---
     @discord.ui.button(label="Fermer Panel", style=discord.ButtonStyle.secondary, row=4, emoji="✖️")
     async def b_close(self, i, b):
-        await i.message.delete() # Supprime le message du panel
+        await i.message.delete() 
 
 # ====================================================
 # 6. SETUP
@@ -198,7 +206,7 @@ class AdminPanel(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.bot.add_view(AdminPanelView()); self.bot.add_view(TicketControlView())
-        print("🦍 Panel V9 Titan (Close Button) Chargé.")
+        print("🦍 Panel V11 Titan (Bug Fix) Chargé.")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -218,7 +226,7 @@ class AdminPanel(commands.Cog):
     @app_commands.command(name="setup_panel")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_panel(self, i: discord.Interaction):
-        await i.channel.send(embed=discord.Embed(title="🦍 TITAN CONTROL V9", color=0x000000), view=AdminPanelView())
+        await i.channel.send(embed=discord.Embed(title="🦍 TITAN CONTROL V11", color=0x000000), view=AdminPanelView())
         await i.response.send_message("✅ Panel déployé.", ephemeral=True)
 
 async def setup(bot): await bot.add_cog(AdminPanel(bot))
