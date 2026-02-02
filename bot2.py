@@ -286,5 +286,54 @@ async def veille_business():
     except Exception as e:
         print(f"❌ Bug RSS : {e}")
 
+# --- COMMANDE TEST RSS (A copier en bas) ---
+@client.tree.command(name="test_rss", description="Force l'envoi du dernier article RSS maintenant")
+async def test_rss(interaction: discord.Interaction):
+    # Petite sécurité : vérifie que c'est toi
+    if interaction.user.id != MON_ID_A_MOI:
+        await interaction.response.send_message("⛔ Pas touche !", ephemeral=True)
+        return
+
+    # On dit à Discord de patienter (le temps de charger le flux)
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        # 1. On force la lecture du lien RSS
+        # Assure-toi que RSS_URL est bien défini en haut de ton fichier
+        feed = feedparser.parse(RSS_URL)
+        
+        if not feed.entries:
+            await interaction.followup.send("❌ Le lien RSS semble vide ou cassé.")
+            return
+
+        # 2. On prend le premier article qui vient
+        latest = feed.entries[0]
+        
+        # 3. On récupère le salon (Assure-toi que ID_SALON_RSS est bon en haut)
+        channel = client.get_channel(ID_SALON_RSS)
+        
+        if not channel:
+            await interaction.followup.send("❌ Impossible de trouver le salon (Vérifie ID_SALON_RSS).")
+            return
+
+        # 4. On crée l'affichage
+        embed = discord.Embed(
+            title="🧪 TEST : " + latest.title,
+            description=f"**[{latest.title}]({latest.link})**",
+            color=0x0055ff
+        )
+        embed.set_footer(text="Ceci est un envoi forcé manuel.")
+
+        # Image (si y'en a une)
+        if 'media_content' in latest and latest.media_content:
+            embed.set_image(url=latest.media_content[0]['url'])
+
+        # 5. On envoie !
+        await channel.send(embed=embed)
+        await interaction.followup.send(f"✅ Article posté avec succès dans {channel.mention} !")
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erreur technique : {e}")
+
 
 client.run(DISCORD_TOKEN)
