@@ -58,7 +58,7 @@ def ask_groq(prompt):
         return f"❌ Erreur IA : {e}"
 
 # --- GESTION JSON RSS (Nouveau bloc à ajouter) ---
-FEEDS_FILE = "feeds.json"
+FEEDS_FILE = "feed.json"
 
 def load_feeds():
     default_feeds = ["https://www.bfmtv.com/rss/economie/"] # Lien de secours
