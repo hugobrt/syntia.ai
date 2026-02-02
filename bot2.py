@@ -56,14 +56,22 @@ def ask_groq(prompt):
     except Exception as e:
         return f"❌ Erreur IA : {e}"
 
-# --- 5. SETUP DISCORD ---
+# --- 5. SETUP DISCORD (MODIFIÉ POUR PANEL) ---
 class Client(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True # Important pour gérer les rôles
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
+        # C'est ICI qu'on connecte le fichier panel.py
+        try:
+            await self.load_extension("panel")
+            print("✅ Extension 'panel.py' chargée avec succès.")
+        except Exception as e:
+            print(f"⚠️ Erreur chargement panel : {e}")
+            
         await self.tree.sync()
         print("🔄 Commandes synchronisées !")
 
