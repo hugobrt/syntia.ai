@@ -4,6 +4,8 @@ from discord import app_commands
 from discord.ext import commands
 from groq import Groq
 import keep_alive  # Le fichier pour empêcher Render de dormir
+import feedparser
+from discord.ext import tasks # Nécessaire pour la boucle automatique
 
 # --- CONFIGURATION MAINTENANCE ---
 BOT_EN_PAUSE = False # Par défaut, tout le monde peut l'utiliser
@@ -70,6 +72,11 @@ client = Client()
 @client.event
 async def on_ready():
     print(f'✅ Bot connecté : {client.user.name}')
+
+# --- DÉMARRAGE RSS ---
+    if not veille_business.is_running():
+        veille_business.start()
+        print("📡 Module RSS Business : ACTIVÉ")
 
 @client.event
 async def on_message(message):
@@ -228,5 +235,56 @@ async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]
         # On le remet en mode "Écoute" (ton statut stylé)
         await interaction.response.send_message("⚡ **Système relancé !** Je suis de retour pour tout le monde.", ephemeral=True)
         await client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="Écoute ton empire se construire"))
+# --- MODULE RSS BUSINESS ---
+ID_SALON_RSS = 1457478400888279282  # ⚠️ REMPLACE PAR TON ID DE SALON
+RSS_URL = "https://services.lesechos.fr/rss/les-echos-economie.xml" # Source : Les Echos
+
+last_posted_link = None # Variable mémoire pour ne pas spammer
+
+@tasks.loop(minutes=30) # Le bot vérifie toutes les 30 minutes
+async def veille_business():
+    global last_posted_link
+    channel = client.get_channel(ID_SALON_RSS)
+    
+    if not channel:
+        print("⚠️ Erreur RSS : Salon introuvable. Vérifie l'ID.")
+        return
+
+    try:
+        # 1. On récupère le flux
+        feed = feedparser.parse(RSS_URL)
+        if not feed.entries:
+            return
+        
+        # 2. On regarde le tout dernier article
+        latest = feed.entries[0]
+        
+        # 3. Logique de publication
+        if last_posted_link is None:
+            # Premier lancement : on mémorise juste le dernier lien sans poster
+            last_posted_link = latest.link
+        
+        elif latest.link != last_posted_link:
+            # C'est une NOUVELLE news !
+            last_posted_link = latest.link
+            
+            # 4. Création de l'annonce
+            embed = discord.Embed(
+                title="📰 Flash Éco",
+                description=f"**[{latest.title}]({latest.link})**", # Titre cliquable
+                color=0x0055ff
+            )
+            embed.set_footer(text="Source : Les Echos • Actualité Business")
+            
+            # On essaie de trouver une image (si dispo dans le flux)
+            if 'media_content' in latest and latest.media_content:
+                embed.set_image(url=latest.media_content[0]['url'])
+            
+            await channel.send(embed=embed)
+            print(f"✅ RSS Posté : {latest.title}")
+
+    except Exception as e:
+        print(f"❌ Bug RSS : {e}")
+
 
 client.run(DISCORD_TOKEN)
