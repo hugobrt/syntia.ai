@@ -58,16 +58,13 @@ class RSSManagerView(discord.ui.View):
     async def r(self, i, b): await i.response.send_message("Lequel ?", view=discord.ui.View().add_item(RemoveRSSSelect(i.client.rss_feeds)), ephemeral=True)
 
 # ====================================================
-# 2. SYSTÈME TICKET
+# 2. SYSTÈME TICKET & SELECTEURS
 # ====================================================
 class TicketControlView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="Fermer le ticket", style=discord.ButtonStyle.danger, custom_id="ticket:close", emoji="🔒")
     async def c(self, i, b): await i.response.send_message("⚠️ Fermeture..."); await asyncio.sleep(2); await i.channel.delete()
 
-# ====================================================
-# 3. SELECTEURS & OUTILS SALONS
-# ====================================================
 class SlowmodeSelect(discord.ui.Select):
     def __init__(self, c):
         self.c = c
@@ -80,7 +77,7 @@ class SlowmodeSelect(discord.ui.Select):
 class ChanSel(discord.ui.View):
     def __init__(self, a): super().__init__(timeout=60); self.a=a
     @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text], placeholder="Choisir le salon...")
-    async def s(self, i, s):
+    async def s(self, i: discord.Interaction, s: discord.ui.ChannelSelect):
         c = i.guild.get_channel(s.values[0].id)
         
         if self.a=="embed": await i.response.send_modal(EmbedModal(c))
@@ -98,10 +95,12 @@ class ChanSel(discord.ui.View):
                 await i.followup.send(f"✅ Ticket installé dans {c.mention}")
             except Exception as e: await i.followup.send(f"❌ Erreur (Permission?) : {e}")
 
+        # --- FIX NUKE (RAFRÂCHISSEMENT) ---
         elif self.a=="nuke":
             await i.response.defer(ephemeral=True)
             nc=await c.clone(reason="Nuke"); await c.delete(); await nc.send(embed=discord.Embed(description=f"☢️ **Salon nettoyé par** {i.user.mention}", color=0xff0000))
-            await i.followup.send("✅ Nuke OK.")
+            # On supprime le menu déroulant pour forcer à réouvrir (et donc rafraîchir la liste)
+            await i.edit_original_response(content=f"✅ **Terminé !** Salon recréé : {nc.mention}.\n*Reclique sur le bouton Nuke du panel pour rafraîchir la liste.*", view=None)
 
         elif self.a=="lock":
             await i.response.defer(ephemeral=True)
@@ -110,7 +109,7 @@ class ChanSel(discord.ui.View):
             await i.followup.send(f"✅ {'🔒 Lock' if not ov.send_messages else '🔓 Unlock'}: {c.mention}")
 
 # ====================================================
-# 4. MODALS (TOUS REMIS)
+# 3. MODALS
 # ====================================================
 class EmbedModal(discord.ui.Modal, title="🎨 Embed Builder"):
     def __init__(self, c): super().__init__(); self.c=c
@@ -189,7 +188,7 @@ class SanctionModal(discord.ui.Modal):
         except Exception as e: await i.response.send_message(f"❌ {e}", ephemeral=True)
 
 # ====================================================
-# 5. DASHBOARD & LISTENERS
+# 4. DASHBOARD & LISTENERS
 # ====================================================
 class RequestAccessView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
@@ -265,7 +264,7 @@ class AdminPanel(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.bot.add_view(AdminPanelView()); self.bot.add_view(TicketControlView()); self.bot.add_view(RequestAccessView())
-        print("🛡️ Panel V20 (TOTAL + FIX) Ready.")
+        print("🛡️ Panel V21 (UX FIX) Ready.")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -285,13 +284,12 @@ class AdminPanel(commands.Cog):
             else: await i.user.add_roles(r); await i.response.send_message(f"➕ {r.name}", ephemeral=True)
         elif cid.startswith("act:msg:"): await i.response.send_message(cid.split(":",2)[2], ephemeral=True)
         
-        # TICKET (LE FIX EST LÀ)
+        # TICKET
         elif cid=="sys:ticket":
-            await i.response.defer(ephemeral=True) # SECURITÉ ANTI CRASH
+            await i.response.defer(ephemeral=True)
             g=i.guild
             if not g.me.guild_permissions.manage_channels:
-                return await i.followup.send("❌ **ERREUR** : Je n'ai pas la permission 'Gérer les salons'. Mettez-moi Admin !")
-            
+                return await i.followup.send("❌ **ERREUR** : Permission 'Gérer les salons' manquante.")
             p={g.default_role: discord.PermissionOverwrite(read_messages=False), i.user: discord.PermissionOverwrite(read_messages=True), g.me: discord.PermissionOverwrite(read_messages=True)}
             c=await g.create_text_channel(f"ticket-{i.user.name}", overwrites=p, category=i.channel.category)
             await i.followup.send(f"✅ Ticket ouvert : {c.mention}", ephemeral=True)
@@ -305,7 +303,7 @@ class AdminPanel(commands.Cog):
     @app_commands.command(name="setup_panel")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_panel(self, i: discord.Interaction):
-        await i.channel.send(embed=discord.Embed(title="🛡️ PANEL V20", color=0x2b2d31), view=AdminPanelView())
+        await i.channel.send(embed=discord.Embed(title="🛡️ PANEL V21", color=0x2b2d31), view=AdminPanelView())
         await i.response.send_message("✅", ephemeral=True)
 
 async def setup(bot): await bot.add_cog(AdminPanel(bot))
