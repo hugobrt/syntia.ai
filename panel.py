@@ -7,7 +7,7 @@ import feedparser
 import json
 import traceback
 
-# Tentative d'importation de la vue depuis le fichier bot_gestion.py
+# Importation sécurisée de la vue de gestion
 try:
     from bot_gestion import BotControlView
 except ImportError:
@@ -25,7 +25,7 @@ def save_local(feeds):
     except: pass
 
 # ====================================================
-# 1. TOUTES LES CLASSES DE SUPPORT (MODALS & VIEWS)
+# 1. CLASSES DE SUPPORT (MODALS & VIEWS)
 # ====================================================
 
 class AddRSSModal(discord.ui.Modal, title="➕ Ajouter Flux RSS"):
@@ -69,7 +69,7 @@ class TestRSSSelect(discord.ui.Select):
 class RSSManagerView(discord.ui.View):
     def __init__(self, feeds): super().__init__(timeout=60); self.feeds=feeds
     @discord.ui.button(label="Liste", style=discord.ButtonStyle.secondary, emoji="📜")
-    async def l(self, i, b): await i.response.send_message("\n".join(self.feeds) if self.feeds else "Aucun.", ephemeral=True)
+    async def l(self, i, b): await i.response.send_message("\n".join(self.feeds) if self.feeds else "Aucun flux.", ephemeral=True)
     @discord.ui.button(label="Ajouter", style=discord.ButtonStyle.success, emoji="➕")
     async def a(self, i, b): await i.response.send_modal(AddRSSModal())
     @discord.ui.button(label="Supprimer", style=discord.ButtonStyle.danger, emoji="🗑️")
@@ -85,7 +85,7 @@ class RoleSelectorView(discord.ui.View):
         await self.c.send(embed=self.e, view=v); await i.response.edit_message(content="✅ Envoyé.", view=None)
 
 class ButtonConfigModal(discord.ui.Modal):
-    def __init__(self, t, e, l, c): super().__init__(title="Config Bouton"); self.t=t; self.e=e; self.l=l; self.c=c; self.v=discord.ui.TextInput(label="Lien ou Message de réponse"); self.add_item(self.v)
+    def __init__(self, t, e, l, c): super().__init__(title="Config Bouton"); self.t=t; self.e=e; self.l=l; self.c=c; self.v=discord.ui.TextInput(label="Lien ou Message"); self.add_item(self.v)
     async def on_submit(self, i):
         vi=discord.ui.View(timeout=None)
         if self.t=="link": vi.add_item(discord.ui.Button(label=self.l, url=self.v.value))
@@ -145,6 +145,10 @@ class SanctionModal(discord.ui.Modal):
             await i.response.send_message(f"✅ Action faite.", ephemeral=True)
         except Exception as e: await i.response.send_message(f"❌ {e}", ephemeral=True)
 
+class SlowmodeSelect(discord.ui.Select):
+    def __init__(self, c): self.c = c; super().__init__(placeholder="Vitesse...", options=[discord.SelectOption(label="OFF", value="0"), discord.SelectOption(label="5s", value="5"), discord.SelectOption(label="1m", value="60")])
+    async def callback(self, i): await self.c.edit(slowmode_delay=int(self.values[0])); await i.response.send_message("✅", ephemeral=True)
+
 class RequestAccessView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="Demander accès", style=discord.ButtonStyle.primary, custom_id="req:ask", emoji="🔑")
@@ -157,13 +161,13 @@ class RequestAccessView(discord.ui.View):
             v.add_item(discord.ui.Button(label="Non", style=discord.ButtonStyle.danger, custom_id=f"req:no:{i.user.id}"))
             await c.send(embed=discord.Embed(description=f"🔐 **Accès**\n👤 {i.user.mention}", color=0xF1C40F), view=v)
 
-class SlowmodeSelect(discord.ui.Select):
-    def __init__(self, c): self.c = c; super().__init__(placeholder="Vitesse...", options=[discord.SelectOption(label="OFF", value="0"), discord.SelectOption(label="5s", value="5"), discord.SelectOption(label="1m", value="60")])
-    async def callback(self, i): await self.c.edit(slowmode_delay=int(self.values[0])); await i.response.send_message("✅", ephemeral=True)
+# ====================================================
+# 2. SÉLECTEURS DE CIBLES
+# ====================================================
 
 class ChanSel(discord.ui.View):
     def __init__(self, a): super().__init__(timeout=60); self.a=a
-    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text], placeholder="Salon ?")
+    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text], placeholder="Quel salon ?")
     async def s(self, i, s):
         c = i.guild.get_channel(s.values[0].id)
         if self.a=="embed": await i.response.send_modal(EmbedModal(c))
@@ -178,91 +182,81 @@ class ChanSel(discord.ui.View):
 
 class UserSel(discord.ui.View):
     def __init__(self, a): super().__init__(timeout=60); self.a=a
-    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="Membre ?")
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="Quel membre ?")
     async def s(self, i, s):
         u=s.values[0]
-        if self.a=="info": await i.response.send_message(f"👤 {u.name} (ID: {u.id})", ephemeral=True)
+        if self.a=="info":
+            # EMBED COMPLET RESTAURÉ
+            emb = discord.Embed(title=f"👤 Infos : {u.name}", color=0x2b2d31)
+            emb.set_thumbnail(url=u.display_avatar.url)
+            emb.add_field(name="🆔 ID", value=f"`{u.id}`", inline=True)
+            emb.add_field(name="📅 Création", value=u.created_at.strftime("%d/%m/%Y"), inline=True)
+            if isinstance(u, discord.Member):
+                emb.add_field(name="📥 Rejoint", value=u.joined_at.strftime("%d/%m/%Y"), inline=False)
+            await i.response.send_message(embed=emb, ephemeral=True)
         elif self.a=="verify":
             r = i.guild.get_role(ID_ROLE_CHATBOT)
-            await i.response.send_message(f"{'✅' if r and r in u.roles else '❌'} {u.name}", ephemeral=True)
+            status = "✅ OK" if r in u.roles else "❌ NON"
+            await i.response.send_message(f"**{u.name}** : {status}", ephemeral=True)
         else: await i.response.send_modal(SanctionModal(u, self.a))
 
 # ====================================================
-# 2. LE PANEL PRINCIPAL
+# 3. LE PANEL PRINCIPAL
 # ====================================================
 
 class MainPanelView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     
-    # LIGNE 0
     @discord.ui.button(label="RSS", style=discord.ButtonStyle.success, row=0, emoji="📰")
     async def b0(self, i, b): await i.response.send_message("📰 RSS", view=RSSManagerView(getattr(i.client, 'rss_feeds', [])), ephemeral=True)
-    
     @discord.ui.button(label="Vérif Accès", style=discord.ButtonStyle.success, row=0, emoji="🕵️")
     async def b1(self, i, b): await i.response.send_message("Qui ?", view=UserSel("verify"), ephemeral=True)
     
-    # APPEL AU SECOND FICHIER bot_gestion.py
     @discord.ui.button(label="GESTION BOT", style=discord.ButtonStyle.danger, row=0, emoji="🤖")
     async def b2(self, i, b): 
         if BotControlView:
-            await i.response.edit_message(embed=discord.Embed(title="🤖 CONFIG BOT", color=0xE74C3C), view=BotControlView())
-        else:
-            await i.response.send_message("❌ Erreur : bot_gestion.py non chargé.", ephemeral=True)
+            await i.response.send_message(embed=discord.Embed(title="🤖 CONFIG BOT", color=0xE74C3C), view=BotControlView(), ephemeral=True)
+        else: await i.response.send_message("❌ Module bot_gestion manquant.", ephemeral=True)
     
     @discord.ui.button(label="Stats", style=discord.ButtonStyle.secondary, row=0, emoji="📊")
-    async def b3(self, i, b): await i.response.send_message(f"📊 {i.guild.member_count}", ephemeral=True)
+    async def b3(self, i, b): await i.response.send_message(f"📊 {i.guild.member_count} membres", ephemeral=True)
 
-    # LIGNE 1
     @discord.ui.button(label="Embed", style=discord.ButtonStyle.primary, row=1, emoji="🎨")
     async def b4(self, i, b): await i.response.send_message("Où ?", view=ChanSel("embed"), ephemeral=True)
-    
     @discord.ui.button(label="Say", style=discord.ButtonStyle.primary, row=1, emoji="🗣️")
     async def b5(self, i, b): await i.response.send_message("Où ?", view=ChanSel("say"), ephemeral=True)
-    
     @discord.ui.button(label="Sondage", style=discord.ButtonStyle.primary, row=1, emoji="🗳️")
     async def b6(self, i, b): await i.response.send_message("Où ?", view=ChanSel("poll"), ephemeral=True)
-
-    # LIGNE 2
+    
     @discord.ui.button(label="Clear", style=discord.ButtonStyle.secondary, row=2, emoji="🧹")
     async def b7(self, i, b): await i.response.send_message("Où ?", view=ChanSel("clear"), ephemeral=True)
-    
     @discord.ui.button(label="Nuke", style=discord.ButtonStyle.danger, row=2, emoji="☢️")
     async def b8(self, i, b): await i.response.send_message("⚠️ Où ?", view=ChanSel("nuke"), ephemeral=True)
-    
     @discord.ui.button(label="Lock", style=discord.ButtonStyle.secondary, row=2, emoji="🔒")
     async def b9(self, i, b): await i.response.send_message("Où ?", view=ChanSel("lock"), ephemeral=True)
-    
     @discord.ui.button(label="Slowmode", style=discord.ButtonStyle.secondary, row=2, emoji="🐢")
     async def b10(self, i, b): await i.response.send_message("Où ?", view=ChanSel("slow"), ephemeral=True)
-
-    # LIGNE 3
+    
     @discord.ui.button(label="Warn", style=discord.ButtonStyle.secondary, row=3, emoji="⚠️")
     async def b11(self, i, b): await i.response.send_message("Qui ?", view=UserSel("warn"), ephemeral=True)
-    
     @discord.ui.button(label="Mute", style=discord.ButtonStyle.secondary, row=3, emoji="⏳")
     async def b12(self, i, b): await i.response.send_message("Qui ?", view=UserSel("mute"), ephemeral=True)
-    
     @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger, row=3, emoji="🦶")
     async def b13(self, i, b): await i.response.send_message("Qui ?", view=UserSel("kick"), ephemeral=True)
-    
     @discord.ui.button(label="Ban", style=discord.ButtonStyle.danger, row=3, emoji="🔨")
     async def b14(self, i, b): await i.response.send_message("Qui ?", view=UserSel("ban"), ephemeral=True)
-    
     @discord.ui.button(label="Unban ID", style=discord.ButtonStyle.success, row=3, emoji="🔓")
     async def b15(self, i, b): await i.response.send_modal(UnbanModal())
-
-    # LIGNE 4
+    
     @discord.ui.button(label="Info User", style=discord.ButtonStyle.secondary, row=4, emoji="🔎")
     async def b16(self, i, b): await i.response.send_message("Qui ?", view=UserSel("info"), ephemeral=True)
-    
     @discord.ui.button(label="Ping", style=discord.ButtonStyle.secondary, row=4, emoji="📡")
     async def b17(self, i, b): await i.response.send_message(f"🏓 {round(i.client.latency*1000)}ms", ephemeral=True)
-    
     @discord.ui.button(label="Fermer Panel", style=discord.ButtonStyle.secondary, row=4, emoji="✖️")
     async def b18(self, i, b): await i.message.delete()
 
 # ====================================================
-# 3. INITIALISATION
+# 4. INITIALISATION
 # ====================================================
 
 class AdminPanel(commands.Cog):
