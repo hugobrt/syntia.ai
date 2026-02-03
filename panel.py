@@ -295,7 +295,7 @@ class AdminPanel(commands.Cog):
         self.bot.add_view(AdminPanelView())
         self.bot.add_view(BotControlView())
         self.bot.add_view(RequestAccessView())
-        print("🛡️ Panel V37 (NO TICKET) Ready.")
+        print("🛡️ INFINITY PANEL V37 Ready.")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -304,7 +304,7 @@ class AdminPanel(commands.Cog):
         
         # NAV
         if cid == "nav:bot": await i.response.edit_message(content=None, embed=discord.Embed(title="🤖 GESTION BOT", color=0xE74C3C), view=BotControlView())
-        elif cid == "nav:main": await i.response.edit_message(content=None, embed=discord.Embed(title="🛡️ PANEL V37", color=0x2b2d31), view=AdminPanelView())
+        elif cid == "nav:main": await i.response.edit_message(content=None, embed=discord.Embed(title="🛡️ INFINITY PANEL V37", color=0x2b2d31), view=AdminPanelView())
         
         # ACCESS
         elif cid.startswith("req:yes:"):
