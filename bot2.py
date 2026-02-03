@@ -87,7 +87,13 @@ class Client(commands.Bot):
             print("✅ Extension 'panel.py' chargée avec succès.")
         except Exception as e:
             print(f"⚠️ Erreur chargement panel : {e}")
-            
+
+        try:
+            await self.load_extension("bot_gestion")
+            print("✅ Extension 'bot_gestion.py' chargée avec succès.")
+        except Exception as e:
+            print(f"⚠️ Erreur chargement bot_gestion : {e}")
+        
         await self.tree.sync()
         print("🔄 Commandes synchronisées !")
 
