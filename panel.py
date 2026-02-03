@@ -13,10 +13,11 @@ ID_ROLE_CHATBOT = 1459868384568283207
 ID_SALON_DEMANDES = 1467977403983991050 
 
 # ====================================================
-# 1. GESTION RSS
+# 1. GESTION RSS (CORRIGÉ: feed.json + TEST)
 # ====================================================
 def save_local(feeds):
-    try: with open("feed.json", "w") as f: json.dump(feeds, f)
+    try:
+        with open("feed.json", "w") as f: json.dump(feeds, f)
     except: pass
 
 class AddRSSModal(discord.ui.Modal, title="➕ Ajouter Flux RSS"):
@@ -47,6 +48,7 @@ class RemoveRSSSelect(discord.ui.Select):
             await i.response.send_message(f"🗑️ Retiré.", ephemeral=True)
         else: await i.response.send_message("❌ Erreur.", ephemeral=True)
 
+# --- AJOUT: TESTEUR RSS (Repris de la V19) ---
 class TestRSSSelect(discord.ui.Select):
     def __init__(self, feeds):
         opts = [discord.SelectOption(label=u.replace("https://","")[:95], value=u, emoji="🔬") for u in feeds]
@@ -166,6 +168,23 @@ class SanctionModal(discord.ui.Modal):
 # ====================================================
 
 # --- MENU GESTION BOT ---
+class StatusSelect(discord.ui.Select):
+    def __init__(self):
+        opts = [
+            discord.SelectOption(label="🟢 En Ligne", value="online"), discord.SelectOption(label="🔴 Ne pas déranger", value="dnd"),
+            discord.SelectOption(label="🌙 Inactif", value="idle"), discord.SelectOption(label="🎮 Joue à: GTA VI", value="play_gta"),
+            discord.SelectOption(label="💼 Boss: Le Business", value="boss_biz")
+        ]
+        super().__init__(placeholder="Changer le statut...", options=opts)
+    async def callback(self, i):
+        val = self.values[0]
+        if val == "online": await i.client.change_presence(status=discord.Status.online)
+        elif val == "dnd": await i.client.change_presence(status=discord.Status.dnd)
+        elif val == "idle": await i.client.change_presence(status=discord.Status.idle)
+        elif val == "play_gta": await i.client.change_presence(activity=discord.Game(name="GTA VI"))
+        elif val == "boss_biz": await i.client.change_presence(activity=discord.Game(name="Gérer le Business"))
+        await i.response.send_message(f"✅ Statut mis à jour.", ephemeral=True)
+
 class BotControlView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="OFF (Invisible)", style=discord.ButtonStyle.danger, row=0)
@@ -174,8 +193,11 @@ class BotControlView(discord.ui.View):
     async def maint(self, i, b): await i.client.change_presence(status=discord.Status.dnd, activity=discord.Game(name="EN MAINTENANCE")); await i.response.send_message("⚠️ Bot Maintenance.", ephemeral=True)
     @discord.ui.button(label="ONLINE", style=discord.ButtonStyle.success, row=0)
     async def online(self, i, b): await i.client.change_presence(status=discord.Status.online); await i.response.send_message("✅ Bot Online.", ephemeral=True)
-    
-    @discord.ui.button(label="RETOUR MENU", style=discord.ButtonStyle.secondary, row=1, custom_id="nav:main")
+    @discord.ui.button(label="Ping", style=discord.ButtonStyle.secondary, row=0)
+    async def ping(self, i, b): await i.response.send_message(f"🏓 {round(i.client.latency*1000)}ms", ephemeral=True)
+    @discord.ui.select(cls=StatusSelect, row=1)
+    async def status_sel(self, i, s): pass 
+    @discord.ui.button(label="RETOUR MENU", style=discord.ButtonStyle.secondary, row=2, custom_id="nav:main")
     async def back(self, i, b): pass
 
 class RequestAccessView(discord.ui.View):
