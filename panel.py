@@ -204,7 +204,7 @@ class BotControlView(discord.ui.View):
     @discord.ui.select(cls=StatusSelect, row=2)
     async def status_sel(self, i, s): pass
     @discord.ui.button(label="RETOUR", style=discord.ButtonStyle.secondary, row=3, emoji="🔙", custom_id="nav:main_menu")
-    async def back(self, i, b): pass 
+    async def back(self, i, b): pass
 
 class SlowmodeSelect(discord.ui.Select):
     def __init__(self, c):
@@ -301,16 +301,28 @@ class AdminPanel(commands.Cog):
         self.bot.add_view(RequestAccessView())
         print("🛡️ Panel V39 (CORRIGÉ) Ready.")
 
-    @commands.Cog.listener()
+@commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
         try:
-            if i.type!=discord.InteractionType.component: return
+            # On ne traite que les clics sur les boutons/menus
+            if i.type != discord.InteractionType.component: return
+            
             cid = i.data.get("custom_id", "")
             
+            # --- LOGIQUE DE NAVIGATION ---
             if cid == "nav:bot_menu": 
-                await i.response.edit_message(embed=discord.Embed(title="🤖 GESTION BOT", color=0xE74C3C), view=BotControlView())
+                # On remplace l'embed et la vue actuelle par le menu Bot
+                await i.response.edit_message(
+                    embed=discord.Embed(title="🤖 GESTION BOT", color=0xE74C3C), 
+                    view=BotControlView()
+                )
+            
             elif cid == "nav:main_menu": 
-                await i.response.edit_message(embed=discord.Embed(title="🛡️ PANEL V39", color=0x2b2d31), view=MainPanelView())
+                # On revient au panel principal
+                await i.response.edit_message(
+                    embed=discord.Embed(title="🛡️ PANEL V39", color=0x2b2d31), 
+                    view=MainPanelView()
+                )
             elif cid.startswith("req:yes:"):
                 m=i.guild.get_member(int(cid.split(":")[2])); r=i.guild.get_role(ID_ROLE_CHATBOT)
                 if m and r: await m.add_roles(r); await i.message.edit(content=f"✅ Accès accordé à {m.mention}", view=None, embed=None)
