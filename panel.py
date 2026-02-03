@@ -48,6 +48,7 @@ class RemoveRSSSelect(discord.ui.Select):
             await i.response.send_message(f"🗑️ Retiré.", ephemeral=True)
         else: await i.response.send_message("❌ Erreur.", ephemeral=True)
 
+# --- AJOUT: TESTEUR RSS (Repris de la V19) ---
 class TestRSSSelect(discord.ui.Select):
     def __init__(self, feeds):
         opts = [discord.SelectOption(label=u.replace("https://","")[:95], value=u, emoji="🔬") for u in feeds]
@@ -158,6 +159,7 @@ class SanctionModal(discord.ui.Modal):
 # 4. DASHBOARD & NAVIGATION
 # ====================================================
 
+# --- MENU GESTION BOT ---
 class StatusSelect(discord.ui.Select):
     def __init__(self):
         opts = [
@@ -225,7 +227,7 @@ class ChanSel(discord.ui.View):
         c=i.guild.get_channel(s.values[0].id)
         if self.a=="embed": await i.response.send_modal(EmbedModal(c))
         elif self.a=="say": await i.response.send_modal(SayModal(c))
-        # PAS DE TICKET ICI (SUPPRIMÉ)
+        # PAS DE TICKET ICI
         elif self.a=="nuke": nc=await c.clone(reason="Nuke"); await c.delete(); await nc.send(embed=discord.Embed(description=f"☢️ **Salon nettoyé par** {i.user.mention}", color=0xff0000)); await i.response.edit_message(content="✅ Nuke effectué.", view=None)
         elif self.a=="poll": await i.response.send_modal(PollModal(c))
         elif self.a=="clear": await i.response.send_modal(ClearModal(c))
@@ -234,9 +236,20 @@ class ChanSel(discord.ui.View):
             ov=c.overwrites_for(i.guild.default_role); ov.send_messages = not ov.send_messages
             await c.set_permissions(i.guild.default_role, overwrite=ov); await i.response.send_message(f"🔒 Lock: {not ov.send_messages}", ephemeral=True)
 
+class UserSel(discord.ui.View):
+    def __init__(self, a): super().__init__(timeout=60); self.a=a
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="Choisir un membre...")
+    async def s(self, i, s):
+        u=s.values[0]
+        if self.a=="verify":
+            if i.guild.get_role(ID_ROLE_CHATBOT) in u.roles: await i.response.send_message(f"✅ **{u.name}** a l'accès.", ephemeral=True)
+            else: await i.response.send_message(f"❌ **{u.name}** N'A PAS l'accès.", ephemeral=True)
+        elif self.a=="info": await i.response.send_message(embed=discord.Embed(title=f"👤 {u.name}", description=f"ID: {u.id}\nCréé: {u.created_at.strftime('%d/%m/%Y')}", color=u.color).set_thumbnail(url=u.display_avatar.url), ephemeral=True)
+        else: await i.response.send_modal(SanctionModal(u, self.a))
+
 class AdminPanelView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
-    # L0
+    # LIGNE 0
     @discord.ui.button(label="RSS", style=discord.ButtonStyle.success, row=0, emoji="📰")
     async def b01(self, i, b): await i.response.send_message("⚙️ **Gestion RSS**", view=RSSManagerView(), ephemeral=True)
     @discord.ui.button(label="Vérif Accès", style=discord.ButtonStyle.success, row=0, emoji="🕵️")
@@ -258,9 +271,7 @@ class AdminPanelView(discord.ui.View):
     async def b12(self, i, b): await i.response.send_message("📍 Où ?", view=ChanSel("say"), ephemeral=True)
     @discord.ui.button(label="Sondage", style=discord.ButtonStyle.primary, row=1, emoji="🗳️")
     async def b13(self, i, b): await i.response.send_message("📍 Où ?", view=ChanSel("poll"), ephemeral=True)
-    # PAS DE BOUTON TICKET
-    # @discord.ui.button(label="Ticket", style=discord.ButtonStyle.primary, row=1, emoji="🎫")
-    # async def b14(self, i, b): await i.response.send_message("📍 Où ?", view=ChanSel("ticket"), ephemeral=True)
+    # PAS DE TICKET ICI
     
     # L2
     @discord.ui.button(label="Clear", style=discord.ButtonStyle.secondary, row=2, emoji="🧹")
@@ -292,10 +303,12 @@ class AdminPanel(commands.Cog):
     def __init__(self, bot): self.bot = bot
     @commands.Cog.listener()
     async def on_ready(self):
+        # On ajoute les vues PERSISTANTES
         self.bot.add_view(AdminPanelView())
         self.bot.add_view(BotControlView())
+        # PAS DE TICKET VIEW
         self.bot.add_view(RequestAccessView())
-        print("🛡️ INFINITY PANEL V37 Ready.")
+        print("🛡️ Panel V37 (NO TICKET) Ready.")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -304,7 +317,7 @@ class AdminPanel(commands.Cog):
         
         # NAV
         if cid == "nav:bot": await i.response.edit_message(content=None, embed=discord.Embed(title="🤖 GESTION BOT", color=0xE74C3C), view=BotControlView())
-        elif cid == "nav:main": await i.response.edit_message(content=None, embed=discord.Embed(title="🛡️ INFINITY PANEL V37", color=0x2b2d31), view=AdminPanelView())
+        elif cid == "nav:main": await i.response.edit_message(content=None, embed=discord.Embed(title="🛡️ PANEL V37", color=0x2b2d31), view=AdminPanelView())
         
         # ACCESS
         elif cid.startswith("req:yes:"):
