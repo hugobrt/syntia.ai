@@ -1,9 +1,6 @@
 import discord
 from discord.ext import commands
 
-# ====================================================
-# 1. MODALS
-# ====================================================
 class StatusCustomModal(discord.ui.Modal, title="✏️ Statut Perso"):
     t = discord.ui.TextInput(label="Type (joue/regarde/ecoute)", placeholder="joue")
     x = discord.ui.TextInput(label="Texte")
@@ -15,20 +12,17 @@ class StatusCustomModal(discord.ui.Modal, title="✏️ Statut Perso"):
         await i.client.change_presence(activity=act)
         await i.response.send_message("✅ Statut mis à jour.", ephemeral=True)
 
-# ====================================================
-# 2. SELECT (CORRIGÉ)
-# ====================================================
 class StatusSelect(discord.ui.Select):
-    # Ajout de *args et **kwargs pour accepter les arguments automatiques de Discord comme 'placeholder'
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
+        # On définit les options ici
         options = [
             discord.SelectOption(label="🎮 GTA VI", value="gta"),
             discord.SelectOption(label="💼 Business", value="biz"),
             discord.SelectOption(label="🛡️ Modération", value="mod"),
             discord.SelectOption(label="🌙 Inactif", value="idle")
         ]
-        # On passe le placeholder ici manuellement dans le super().__init__
-        super().__init__(placeholder="Statuts Rapides...", options=options, *args, **kwargs)
+        # CORRECTION : On appelle super() sans ajouter d'arguments bizarres (*args/**kwargs)
+        super().__init__(placeholder="Statuts Rapides...", options=options)
 
     async def callback(self, i: discord.Interaction):
         if self.values[0] == "gta": await i.client.change_presence(activity=discord.Game(name="GTA VI"))
@@ -37,9 +31,6 @@ class StatusSelect(discord.ui.Select):
         elif self.values[0] == "idle": await i.client.change_presence(status=discord.Status.idle)
         await i.response.send_message("✅ Appliqué.", ephemeral=True)
 
-# ====================================================
-# 3. VIEW
-# ====================================================
 class BotControlView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
 
@@ -59,11 +50,5 @@ class BotControlView(discord.ui.View):
     async def back(self, i, b):
         from panel import MainPanelView
         await i.response.edit_message(embed=discord.Embed(title="🛡️ INFINITY PANEL V40", color=0x2b2d31), view=MainPanelView())
-
-class BotGestion(commands.Cog):
-    def __init__(self, bot): self.bot = bot
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.bot.add_view(BotControlView())
 
 async def setup(bot): await bot.add_cog(BotGestion(bot))
