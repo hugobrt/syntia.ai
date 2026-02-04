@@ -61,13 +61,28 @@
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
         
+        /* LABO LOADER (NOUVEAU) */
         #lab-loader {
-            position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.95);
+            position: fixed; inset: 0; z-index: 9000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
         #lab-loader.active { opacity: 1; pointer-events: auto; }
-        .lab-spinner { width: 50px; height: 50px; border: 3px solid var(--experimental); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        
+        .lab-title-load {
+            font-family: 'JetBrains Mono'; font-weight: 800; font-size: 2.5rem;
+            color: #fff; letter-spacing: 2px; margin-bottom: 20px;
+            opacity: 0; animation: fadeIn 0.5s forwards;
+        }
+        .lab-load-bar-bg {
+            width: 200px; height: 4px; background: #222; border-radius: 2px;
+            overflow: hidden; opacity: 0; animation: fadeIn 0.5s 0.3s forwards;
+        }
+        .lab-load-bar-fill {
+            width: 0%; height: 100%; background: var(--experimental);
+            box-shadow: 0 0 10px var(--experimental);
+            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+        }
 
         /* --- POPUPS --- */
         #wip-modal, #discord-modal {
@@ -133,65 +148,39 @@
         .view.active .lab-card:nth-child(1) { animation-delay: 0.1s; } .view.active .lab-card:nth-child(2) { animation-delay: 0.2s; } .view.active .lab-card:nth-child(3) { animation-delay: 0.3s; } .view.active .lab-card:nth-child(4) { animation-delay: 0.4s; }
         .lab-card:hover { transform: translateY(-8px); border-color: var(--experimental); background: rgba(255,255,255,0.06); }
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
+        
+        /* BARRES PROGRESSION LABO */
         .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
-        .progress-rainbow { height: 100%; width: 0; border-radius: 10px; background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); background-size: 200% 100%; animation: rainbowMove 2s linear infinite; transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
+        .progress-fill { 
+            height: 100%; width: 0; border-radius: 10px; 
+            background: var(--experimental); /* COULEUR LABO */
+            box-shadow: 0 0 15px var(--experimental);
+            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); 
+        }
         .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
 
-        @keyframes rainbowMove { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { to { opacity: 1; } }
 
-        /* =========================================
-           BOT INTERFACE (Style "Index.html")
-           ========================================= */
-        #bot-view { 
-            background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; 
-        }
+        /* BOT INTERFACE */
+        #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
         .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
         .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
-        
-        /* Les panneaux spécifiques demandés */
-        .panel { 
-            background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); 
-            border-radius: 20px; padding: 25px; display: flex; flex-direction: column; 
-            box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; 
-            transition: 0.3s; 
-        }
+        .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; transition: 0.3s; }
         .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
-
-        .cmd-btn { 
-            background: #0a0a0a; border: 1px solid #222; padding: 15px; 
-            border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; 
-            font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; 
-            cursor: not-allowed; pointer-events: none; 
-        }
+        .cmd-btn { background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; }
         .cmd-btn.unlocked { cursor: pointer; pointer-events: auto; color: #aaa; border-color: var(--dim-green); }
         .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
-
-        .kill-btn { margin-top: auto; border-color: var(--red) !important; color: var(--red) !important; text-align: center; justify-content: center; }
         .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
-
-        .github-btn { margin-top: 15px; border-color: #fff !important; color: #fff !important; text-align: center; justify-content: center; }
         .github-btn:hover { background: #fff !important; color: #000 !important; }
-
-        #terminal-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; transition: opacity 0.5s; }
         #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
         .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
-        .sys-prefix { color: var(--green); margin-right: 10px; }
-        
-        .term-link { 
-            display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; 
-            border: 1px solid var(--green); color: var(--green); cursor: pointer; 
-            font-size: 0.8rem; transition: 0.2s;
-        }
+        .term-link { display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
         .term-link:hover { background: var(--green); color: #000; }
-
         .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; }
         .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
-
         #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
         #git-confirm.active { display: flex; opacity: 1; }
-
         .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; }
         .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
         .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 12px; z-index: -1; }
@@ -224,9 +213,10 @@
     <div id="loader">
         <i class="fas fa-fingerprint loader-icon"></i>
     </div>
+    
     <div id="lab-loader">
-        <div class="lab-spinner"></div>
-        <div style="font-family:'JetBrains Mono'; letter-spacing:3px; font-size:0.8rem; color:#fff;">LOADING EXPERIMENTAL DATA...</div>
+        <div class="lab-title-load">SYNTIA LAB</div>
+        <div class="lab-load-bar-bg"><div class="lab-load-bar-fill" id="lab-main-bar"></div></div>
     </div>
 
     <div id="wip-modal">
@@ -308,28 +298,28 @@
                         <h3 class="lab-title">Infinity Panel</h3>
                         <p class="lab-desc">Architecture centrale du bot. Gestion des rôles, logs avancés et sécurité neuronale.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>100%</span></div>
-                        <div class="progress-track"><div class="progress-rainbow" data-width="100%"></div></div>
+                        <div class="progress-track"><div class="progress-fill" data-width="100%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--primary); border-color:var(--primary)">BETA TEST</span>
                         <h3 class="lab-title">Neural Trading</h3>
                         <p class="lab-desc">Algorithme prédictif analysant les tendances crypto (Binance/Bybit) en temps réel.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>82%</span></div>
-                        <div class="progress-track"><div class="progress-rainbow" data-width="82%"></div></div>
+                        <div class="progress-track"><div class="progress-fill" data-width="82%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:#ffae00; border-color:#ffae00">ALPHA</span>
                         <h3 class="lab-title">Web Dashboard</h3>
                         <p class="lab-desc">Interface web React.js pour configurer le bot sans utiliser de commandes Discord.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>45%</span></div>
-                        <div class="progress-track"><div class="progress-rainbow" data-width="45%"></div></div>
+                        <div class="progress-track"><div class="progress-fill" data-width="45%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--experimental); border-color:var(--experimental)">RESEARCH</span>
                         <h3 class="lab-title">Voice Synthesis</h3>
                         <p class="lab-desc">Module expérimental permettant à Syntia de rejoindre les vocaux et de parler (TTS IA).</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>15%</span></div>
-                        <div class="progress-track"><div class="progress-rainbow" data-width="15%"></div></div>
+                        <div class="progress-track"><div class="progress-fill" data-width="15%"></div></div>
                     </div>
                 </div>
             </div>
@@ -340,22 +330,14 @@
             <div class="bot-grid" id="bot-ui">
                 <div class="panel" id="sidebar-panel">
                     <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
-                    
                     <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
                     <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
                     <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
-                    
-                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()">
-                        <i class="fab fa-github"></i> GITHUB
-                    </button>
-
-                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()">
-                        <i class="fas fa-power-off"></i> SIGNAL LOST
-                    </button>
+                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()"><i class="fab fa-github"></i> GITHUB</button>
+                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()"><i class="fas fa-power-off"></i> SIGNAL LOST</button>
                 </div>
 
                 <div class="panel" style="position:relative;">
-                    
                     <div id="terminal-wrapper">
                         <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
                             <span>SSH: root@syntia-core</span>
@@ -369,11 +351,9 @@
                         <i class="fab fa-github" style="font-size:4rem; color:#fff; margin-bottom:30px;"></i>
                         <h2 style="margin-bottom:10px; color:#fff;">EXTERNAL LINK DETECTED</h2>
                         <p style="color:#aaa; margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
-                        
                         <button class="rainbow-btn" onclick="confirmGithub()">ACCÉDER AU REPO</button>
                         <button class="cancel-btn" onclick="cancelGithub()">ANNULER</button>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -432,7 +412,7 @@
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
         function confirmDiscord() {
-            window.open('TON_LIEN_DISCORD', '_blank'); // REMPLACE TON LIEN
+            window.open('https://discord.gg/muJTPWcpjC', '_blank'); // REMPLACE TON LIEN
             closeDiscordModal();
         }
 
@@ -450,19 +430,29 @@
             const homeBg = document.getElementById('home-bg');
             const laboBg = document.getElementById('labo-bg');
             const labLoader = document.getElementById('lab-loader');
+            const labBar = document.getElementById('lab-main-bar');
             
             if (id === 'labo-view') {
+                // Show Lab Loader
                 labLoader.classList.add('active');
-                setTimeout(() => { labLoader.classList.remove('active'); }, 800);
-                homeBg.classList.remove('active');
-                laboBg.classList.add('active');
-                setTimeout(() => {
-                    document.querySelectorAll('.progress-rainbow').forEach(bar => {
+                labBar.style.width = '0%';
+                
+                // Animate small bar
+                setTimeout(() => { labBar.style.width = '100%'; }, 100);
+
+                // Reveal Page after 1.2s
+                setTimeout(() => { 
+                    labLoader.classList.remove('active'); 
+                    document.querySelectorAll('.progress-fill').forEach(bar => {
                         bar.style.width = bar.getAttribute('data-width');
                     });
-                }, 800);
+                }, 1200);
+
+                homeBg.classList.remove('active');
+                laboBg.classList.add('active');
+                
             } else {
-                document.querySelectorAll('.progress-rainbow').forEach(bar => bar.style.width = '0');
+                document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '0');
                 if (id === 'bot-view') {
                     homeBg.classList.remove('active');
                     laboBg.classList.remove('active');
@@ -500,7 +490,7 @@
             }, 4000);
         }
 
-        // 5. BOT BOOT (CORRIGÉ POUR RESET)
+        // 5. BOT BOOT
         function runBoot() {
             const term = document.getElementById('terminal');
             const bar = document.getElementById('boot-fill');
