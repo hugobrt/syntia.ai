@@ -44,6 +44,8 @@ client_groq = Groq(api_key=GROQ_API_KEY)
 
 def ask_groq(prompt):
     try:
+        keep_alive.bot_stats["ai_requests"] += 1
+        
         completion = client_groq.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
@@ -99,9 +101,31 @@ class Client(commands.Bot):
 
 client = Client()
 
+# --- NOUVEAU : TÂCHE DE SYNCHRONISATION VERS LE PANEL ---
+@tasks.loop(seconds=5)
+async def sync_panel():
+    if client.is_ready():
+        # 1. Calculer les membres
+        total = sum([g.member_count for g in client.guilds])
+        
+        # 2. Envoyer dans le fichier keep_alive
+        keep_alive.bot_stats["members"] = total
+        keep_alive.bot_stats["ping"] = round(client.latency * 1000)
+        
+        # 3. Mettre à jour le statut
+        if BOT_EN_PAUSE:
+            keep_alive.bot_stats["status"] = "MAINTENANCE"
+        elif BOT_FAUX_ARRET:
+            keep_alive.bot_stats["status"] = "INVISIBLE"
+        else:
+            keep_alive.bot_stats["status"] = "ONLINE"
+
 @client.event
 async def on_ready():
     print(f'✅ Bot connecté : {client.user.name}')
+
+    if not sync_panel.is_running():
+        sync_panel.start()
 
 # --- DÉMARRAGE RSS ---
     if not veille_business.is_running():
@@ -113,6 +137,16 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+try:
+        heure = message.created_at.strftime("%H:%M")
+        # On nettoie le message pour éviter les erreurs
+        clean_content = message.content.replace('"', "'")[:40] 
+        log_line = f"[{heure}] {message.author.name}: {clean_content}..."
+        keep_alive.bot_logs.append(log_line)
+        if len(keep_alive.bot_logs) > 50: keep_alive.bot_logs.pop(0)
+    except: pass
+    # -------------------------------
+    
     # --- BLOC MAINTENANCE ---
     global BOT_EN_PAUSE
     if BOT_EN_PAUSE:
