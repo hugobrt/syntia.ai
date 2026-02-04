@@ -303,7 +303,7 @@
         <div class="wip-box">
             <i class="fas fa-hammer" style="font-size:3rem; color:var(--primary); margin-bottom:20px;"></i>
             <h2>Projet en Cours</h2>
-            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia et son Terminal Bot sont en phase Alpha. Des fonctionnalités peuvent être instables.</p>
+            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia est Beta. Des fonctionnalités ou erreurs peuvent survenirs.</p>
             <button class="btn-main" onclick="closeWip()">ENTRER</button>
         </div>
     </div>
@@ -514,7 +514,7 @@
 
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
-        function confirmDiscord() { window.open('TON_LIEN_DISCORD', '_blank'); closeDiscordModal(); }
+        function confirmDiscord() { window.open('https://discord.gg/txcWtE8NwN', '_blank'); closeDiscordModal(); }
 
         function switchView(id) {
             document.querySelectorAll('.view').forEach(el => { el.classList.remove('active'); el.classList.remove('warp-out'); });
