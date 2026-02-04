@@ -137,7 +137,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-try:
+    try:
         heure = message.created_at.strftime("%H:%M")
         # On nettoie le message pour éviter les erreurs
         clean_content = message.content.replace('"', "'")[:40] 
