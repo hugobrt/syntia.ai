@@ -50,10 +50,10 @@
             transition: background 0.5s ease, color 0.5s ease;
         }
 
-        /* --- THEME TOGGLE BUTTON --- */
+        /* --- THEME TOGGLE BUTTON (PC: BAS DROITE) --- */
         #theme-toggle {
             position: fixed; 
-            bottom: 30px; right: 30px; /* Bas droite sur PC */
+            bottom: 30px; right: 30px;
             z-index: 2000;
             background: var(--glass); border: 1px solid var(--glass-border);
             width: 50px; height: 50px; border-radius: 50%;
@@ -205,7 +205,6 @@
         .glass-card h3 { color: var(--text-site); margin-bottom: 15px; }
         .glass-card p { color: var(--text-muted); line-height: 1.6; margin: 0; }
 
-        /* BOUTON TERMINAL SPECIAL */
         .btn-main { padding: 18px 45px; background: var(--text-site); color: var(--bg-site); border-radius: 50px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; font-size: 1rem; }
         .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.3); }
         
@@ -215,7 +214,6 @@
             border: 1px solid rgba(255,255,255,0.2); 
             color: var(--text-site);
         }
-        /* Style PC Light Mode */
         body.light-mode .btn-terminal {
             background: rgba(0,0,0,0.05); 
             border: 1px solid rgba(0,0,0,0.1); 
@@ -227,7 +225,10 @@
         .btn-ghost:hover { background: var(--text-site); color: var(--bg-site); }
 
         /* LABO CARDS */
-        .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
+        .lab-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 30px; margin-top: 40px; padding-bottom: 50px; 
+        }
         .lab-card { 
             background: var(--glass); border: 1px solid var(--glass-border); 
             padding: 35px; border-radius: 30px; position: relative; overflow: hidden; 
@@ -314,23 +315,35 @@
         /* --- RESPONSIVE MOBILE --- */
         @media(max-width: 900px) {
             h1 { font-size: 3rem; }
-            nav { padding: 20px 25px; }
             
-            /* MODIF: Bouton Thème revient en haut sur Mobile + Visible */
+            /* NAVIGATION MOBILE: VERTICALE */
+            nav {
+                flex-direction: column; /* Empiler logo et menu */
+                gap: 15px; padding: 15px;
+                background: rgba(0,0,0,0.8); /* Fond pour lisibilité */
+                backdrop-filter: blur(20px);
+            }
+            .brand { width: 100%; display: flex; justify-content: flex-start; }
+            
+            .nav-pills { 
+                width: 100%; justify-content: center; /* Centrer les pilules */
+                margin-right: 0; background: transparent; border: none;
+            }
+            
+            /* BOUTON THÈME MOBILE */
             #theme-toggle { 
                 top: 20px; right: 20px; bottom: auto; 
                 width: 50px; height: 50px;
-                background: var(--bg-panel); /* Fond opaque */
-                border: 2px solid var(--text-site); /* Bordure visible */
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Ombre */
+                background: var(--bg-panel); 
+                border: 2px solid var(--text-site);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             } 
-            .nav-pills { margin-right: 60px; }
             
-            /* MODIF: Bouton Terminal Bot sur Mobile */
+            /* BOUTON TERMINAL BOT MOBILE */
             .btn-terminal {
-                background: var(--bg-panel) !important; /* Fond opaque */
-                border: 2px solid var(--text-site) !important; /* Bordure visible */
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; /* Ombre */
+                background: var(--bg-panel) !important; 
+                border: 2px solid var(--text-site) !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
                 color: var(--text-site) !important;
                 opacity: 1 !important;
             }
@@ -350,7 +363,6 @@
         }
         @media(max-width: 400px) {
             h1 { font-size: 2.5rem; }
-            .nav-pills { display: none; }
             .lab-card { padding: 25px; }
         }
     </style>
@@ -644,7 +656,7 @@
                                 homeBg.classList.remove('active');
                                 laboBg.classList.add('active');
                                 document.getElementById('lab-cards-container').classList.add('show');
-                                
+                                // Trigger lock cards reveal too
                                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '1');
                                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(0)');
                                 
@@ -660,6 +672,7 @@
             } else {
                 document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '0');
                 document.getElementById('lab-cards-container').classList.remove('show');
+                // Hide locked cards
                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '0');
                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(50px)');
                 
