@@ -99,9 +99,119 @@ class Client(commands.Bot):
 
 client = Client()
 
+@tasks.loop(seconds=5)
+async def sync_panel():
+    if client.is_ready():
+        # --- PARTIE 1 : STATS ---
+        total = sum([g.member_count for g in client.guilds])
+        keep_alive.bot_stats["members"] = total
+        keep_alive.bot_stats["ping"] = round(client.latency * 1000)
+        
+        if BOT_FAUX_ARRET:
+            keep_alive.bot_stats["status"] = "INVISIBLE"
+        elif BOT_EN_PAUSE:
+            keep_alive.bot_stats["status"] = "MAINTENANCE"
+        else:
+            keep_alive.bot_stats["status"] = "ONLINE"
+
+        # --- PARTIE 2 : LISTES POUR LE SITE (Salons & Membres) ---
+        if client.guilds:
+            guild = client.guilds[0] # On prend le premier serveur trouvé
+            
+            # Récupérer les salons textuels (ID + Nom)
+            channels_list = [
+                {"id": str(c.id), "name": f"#{c.name}"} 
+                for c in guild.channels if isinstance(c, discord.TextChannel)
+            ]
+            
+            # Récupérer les membres (ID + Nom) - On ignore les bots
+            members_list = [
+                {"id": str(m.id), "name": m.name} 
+                for m in guild.members if not m.bot
+            ]
+
+            # On envoie tout ça dans la mémoire partagée
+            keep_alive.bot_data["channels"] = channels_list
+            keep_alive.bot_data["members"] = members_list
+
+@tasks.loop(seconds=1)
+async def process_web_commands():
+    # On regarde si une commande est arrivée
+    if keep_alive.command_queue:
+        cmd = keep_alive.command_queue.pop(0)
+        action = cmd.get("action")
+
+        try:
+            # --- ACTION : SAY (Message dans un salon précis) ---
+            if action == "say":
+                msg = cmd.get("content")
+                chan_id = cmd.get("channel_id") # L'ID choisi sur le site
+                
+                if chan_id:
+                    channel = client.get_channel(int(chan_id))
+                    if channel:
+                        await channel.send(msg)
+                        keep_alive.bot_logs.append(f"[ADMIN] Message envoyé dans #{channel.name}")
+                    else:
+                        keep_alive.bot_logs.append(f"[ERREUR] Salon {chan_id} introuvable")
+
+            # --- ACTION : CLEAR (Nettoyer un salon précis) ---
+            elif action == "clear":
+                chan_id = cmd.get("channel_id")
+                
+                if chan_id:
+                    channel = client.get_channel(int(chan_id))
+                    if channel:
+                        await channel.purge(limit=5)
+                        keep_alive.bot_logs.append(f"[ADMIN] Purge effectuée dans #{channel.name}")
+
+            # --- ACTION : KICK (Un membre précis) ---
+            elif action == "kick":
+                uid = int(cmd.get("user_id"))
+                guild = client.guilds[0]
+                member = await guild.fetch_member(uid)
+                if member:
+                    await member.kick(reason="Ordre via Panel Web")
+                    keep_alive.bot_logs.append(f"[ADMIN] Kicked {member.name}")
+
+            # --- ACTION : BAN (Un membre précis) ---
+            elif action == "ban":
+                uid = int(cmd.get("user_id"))
+                guild = client.guilds[0]
+                user = await client.fetch_user(uid)
+                await guild.ban(user, reason="Ordre via Panel Web")
+                keep_alive.bot_logs.append(f"[ADMIN] Banned {user.name}")
+
+            # --- ACTION : SHUTDOWN ---
+            elif action == "shutdown":
+                global BOT_FAUX_ARRET
+                BOT_FAUX_ARRET = True
+                await client.change_presence(status=discord.Status.invisible)
+                keep_alive.bot_logs.append("[ADMIN] Mode Invisible activé")
+
+        except Exception as e:
+            keep_alive.bot_logs.append(f"[ERREUR WEB] {e}")
+
 @client.event
 async def on_ready():
-    print(f'✅ Bot connecté : {client.user.name}')
+    print(f'✅ Bot connecté avec succès : {client.user.name} (ID: {client.user.id})')
+    print('------')
+
+    # 1. Démarrage de la synchro des données (Listes déroulantes + Stats)
+    if not sync_panel.is_running():
+        sync_panel.start()
+        print("🔄 Module Sync Panel (Stats & Listes) : DÉMARRÉ")
+
+    # 2. Démarrage de l'écoute des commandes Web (Boutons du site)
+    if not process_web_commands.is_running():
+        process_web_commands.start()
+        print("🌐 Module Commandes Web (Actions) : DÉMARRÉ")
+
+    # 4. Envoi d'un log système visible sur le site Web
+    keep_alive.bot_logs.append(f"[SYSTEM] Démarrage complet. Connecté sur {len(client.guilds)} serveur(s).")
+    
+    # 5. Mise à jour du statut Discord
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Syntia Core v4"))
 
 # --- DÉMARRAGE RSS ---
     if not veille_business.is_running():
