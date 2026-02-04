@@ -14,7 +14,7 @@
             --text-site: #ffffff;
             --primary: #6c5ce7;
             --secondary: #00cec9;
-            --experimental: #ff0055;
+            --experimental: #ff0055; /* Couleur Labo */
             --glass: rgba(255, 255, 255, 0.03);
             --glass-strong: rgba(20, 20, 20, 0.9);
             --border-site: rgba(255, 255, 255, 0.1);
@@ -38,7 +38,7 @@
 
         /* --- BACKGROUNDS MANAGER --- */
         .bg-layer {
-            position: fixed; inset: 0; z-index: -1; transition: opacity 1s ease-in-out; opacity: 0; pointer-events: none;
+            position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none;
         }
         .bg-layer.active { opacity: 1; }
 
@@ -49,7 +49,7 @@
         .b2 { width: 50vw; height: 50vw; background: #00cec9; bottom: -20%; right: -10%; animation-delay: -5s; }
         @keyframes float { from { transform: translate(0,0); } to { transform: translate(30px, 30px); } }
 
-        /* LABO BG */
+        /* LABO BG (Blueprint Grid) */
         .blueprint-grid {
             background-color: #050505;
             background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
@@ -57,13 +57,23 @@
         }
         @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 40px; } }
 
-        /* --- LOADER --- */
+        /* --- LOADERS --- */
+        /* Main Loader */
         #loader {
             position: fixed; inset: 0; z-index: 10000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: transform 0.8s var(--ease);
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
+        
+        /* Labo Specific Loader */
+        #lab-loader {
+            position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #lab-loader.active { opacity: 1; pointer-events: auto; }
+        .lab-spinner { width: 50px; height: 50px; border: 3px solid var(--experimental); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         
         /* --- POPUPS --- */
         #wip-modal, #discord-modal {
@@ -82,7 +92,7 @@
         #wip-modal.visible .wip-box, #discord-modal.active .discord-box { transform: scale(1); }
         .discord-icon { font-size: 4rem; color: #5865F2; margin-bottom: 20px; }
 
-        /* --- MATRIX TRANSITION (CORRIGÉ) --- */
+        /* --- MATRIX TRANSITION --- */
         #matrix-layer {
             position: fixed; inset: 0; z-index: 8000; background: #000;
             pointer-events: none; opacity: 0; transition: opacity 0.5s;
@@ -90,17 +100,15 @@
         #matrix-layer.active { opacity: 1; pointer-events: auto; }
         canvas { position: absolute; inset: 0; display: block; }
         
-        /* CENTRAGE ABSOLU DU TEXTE */
         .matrix-ui { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             z-index: 10; text-align: center; font-family: 'JetBrains Mono'; width: 100%;
         }
-        
         .scramble-text {
             font-size: 3.5rem; font-weight: 800; color: var(--green);
             text-shadow: 0 0 20px var(--green); background: rgba(0,0,0,0.8);
             padding: 20px 40px; border: 1px solid var(--green); border-radius: 15px;
-            display: inline-block; /* Important pour le centrage */
+            display: inline-block;
         }
         .access-sub {
             margin-top: 20px; color: var(--green); letter-spacing: 3px; font-size: 0.9rem;
@@ -154,55 +162,58 @@
         }
         .btn-ghost:hover { background: #fff; color: #000; }
 
-        /* LABO */
+        /* LABO STYLES (NEW) */
         .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
         .lab-card {
             background: rgba(255,255,255,0.03); border: 1px solid var(--border-site);
             padding: 35px; border-radius: 30px; position: relative; overflow: hidden;
             backdrop-filter: blur(20px); transition: 0.4s; opacity: 0; transform: translateY(30px);
         }
+        
+        /* Cascade Animation triggers when view is active */
         .view.active .lab-card { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .view.active .lab-card:nth-child(1) { animation-delay: 0.1s; }
         .view.active .lab-card:nth-child(2) { animation-delay: 0.2s; }
         .view.active .lab-card:nth-child(3) { animation-delay: 0.3s; }
         .view.active .lab-card:nth-child(4) { animation-delay: 0.4s; }
+
         .lab-card:hover { transform: translateY(-8px); border-color: var(--experimental); background: rgba(255,255,255,0.06); }
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
+        .lab-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 10px; color: #fff; }
+        .lab-desc { color: #888; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; }
+
+        /* RAINBOW BAR */
         .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
         .progress-rainbow {
             height: 100%; width: 0; border-radius: 10px;
             background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000);
             background-size: 200% 100%; animation: rainbowMove 2s linear infinite;
             transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 0 15px rgba(255,255,255,0.4);
         }
         .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
 
         @keyframes rainbowMove { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* BOT INTERFACE */
         #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
         .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
         .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
         .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; transition: 0.3s; }
-        
         .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
-
         .cmd-btn { background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; }
         .cmd-btn.unlocked { cursor: pointer; pointer-events: auto; color: #aaa; border-color: var(--dim-green); }
         .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
         .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
         .github-btn:hover { background: #fff !important; color: #000 !important; }
-
-        #terminal-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; transition: opacity 0.5s; }
         #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
         .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
         .term-link { display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
         .term-link:hover { background: var(--green); color: #000; }
         .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; }
         .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
-
-        /* GITHUB CONFIRM */
         #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
         #git-confirm.active { display: flex; opacity: 1; }
         .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; }
@@ -217,7 +228,6 @@
         @keyframes warp { 0% { transform: scale(1); filter: blur(0); opacity: 1; } 40% { transform: scale(1.1); filter: blur(5px); opacity: 1; } 100% { transform: scale(0.1, 0.01); filter: blur(50px); opacity: 0; } }
         #toast { position: fixed; bottom: 40px; right: 40px; z-index: 20000; background: #000; border: 1px solid var(--red); color: var(--red); padding: 20px 30px; border-radius: 10px; font-family: 'JetBrains Mono'; transform: translateX(200%); transition: 0.5s; display: flex; align-items: center; gap: 15px; }
         #toast.visible { transform: translateX(0); }
-        
         .legal-content { max-width: 800px; margin: 0 auto; margin-top: 50px; }
         .legal-card { background: var(--glass); padding: 40px; border-radius: 30px; border: 1px solid var(--border-site); margin-bottom: 30px; backdrop-filter: blur(10px); }
         .legal-card h3 { font-size: 1.2rem; margin-bottom: 10px; color: #fff; margin-top: 20px; }
@@ -238,12 +248,16 @@
     <div id="loader">
         <i class="fas fa-fingerprint loader-icon"></i>
     </div>
+    <div id="lab-loader">
+        <div class="lab-spinner"></div>
+        <div style="font-family:'JetBrains Mono'; letter-spacing:3px; font-size:0.8rem; color:#fff;">LOADING EXPERIMENTAL DATA...</div>
+    </div>
 
     <div id="wip-modal">
         <div class="wip-box">
             <i class="fas fa-hammer" style="font-size:3rem; color:var(--primary); margin-bottom:20px;"></i>
             <h2>Projet en Cours</h2>
-            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia et son Terminal Bot sont en phase Alpha.</p>
+            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia et son Terminal Bot sont en phase Alpha. Des fonctionnalités peuvent être instables.</p>
             <button class="btn-main" onclick="closeWip()">ENTRER</button>
         </div>
     </div>
@@ -252,7 +266,7 @@
         <div class="discord-box">
             <i class="fab fa-discord discord-icon"></i>
             <h2>Rejoindre l'Élite ?</h2>
-            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia.</p>
+            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
             <div style="display:flex; gap:15px; justify-content:center; margin-top:30px;">
                 <button class="btn-ghost" onclick="closeDiscordModal()">ANNULER</button>
                 <button class="btn-main" onclick="confirmDiscord()">REJOINDRE</button>
@@ -383,27 +397,32 @@
                 <h1>Politique de Confidentialité</h1>
                 <div class="legal-card">
                     <p><b>Dernière mise à jour :</b> 03 Février 2026</p>
-                    <p>Chez Syntia, la protection de vos données est primordiale.</p>
+                    <p>Chez Syntia, la protection de vos données est primordiale. Voici comment nous traitons vos informations :</p>
                     <h3>1. Données Techniques (IDs)</h3>
-                    <p>Pour assurer le fonctionnement du Bot, nous stockons uniquement : Server ID, Channel IDs, Admin User IDs.</p>
+                    <p>Pour assurer le fonctionnement du Bot (modération, logs, gestion de salon), nous stockons uniquement les identifiants techniques nécessaires :</p>
+                    <ul>
+                        <li><b>Server ID (Guild ID) :</b> Pour identifier votre communauté.</li>
+                        <li><b>Channel IDs :</b> Pour savoir où envoyer les messages.</li>
+                        <li><b>Admin User IDs :</b> Pour vérifier les permissions d'accès au panel.</li>
+                    </ul>
                     <h3>2. Clés API & Sécurité</h3>
-                    <p>Les clés API (Groq, Llama) sont stockées de manière chiffrée dans les variables d'environnement (Render Cloud). Aucune clé n'est exposée.</p>
-                    <h3>3. Non-Rétention</h3>
-                    <p>Syntia n'enregistre aucune conversation. Tout est traité en RAM.</p>
+                    <p>Les clés API utilisées pour connecter le bot à l'intelligence artificielle (Groq, Llama) et aux services externes ne sont <b>jamais</b> stockées dans le code source public ni accessibles côté client. Elles sont sécurisées via les variables d'environnement de notre hébergeur (Render Cloud), garantissant une étanchéité totale.</p>
+                    <h3>3. Non-Rétention des Messages</h3>
+                    <p>Syntia n'enregistre aucune conversation. Les messages envoyés à l'IA sont traités en mémoire vive (RAM) le temps de générer la réponse, puis sont immédiatement détruits.</p>
                 </div>
                 <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
             </div>
         </div>
         <div id="cgu-view" class="view">
             <div class="legal-content">
-                <h1>Conditions Générales</h1>
+                <h1>Conditions Générales d'Utilisation</h1>
                 <div class="legal-card">
                     <h3>1. Acceptation</h3>
-                    <p>En utilisant Syntia, vous acceptez les règles de Discord et ces CGU.</p>
-                    <h3>2. Responsabilité</h3>
-                    <p>L'utilisateur est responsable de l'usage des commandes de modération. Syntia décline toute responsabilité en cas d'abus.</p>
+                    <p>En invitant le bot Syntia ou en rejoignant notre serveur Discord, vous acceptez pleinement les présentes conditions ainsi que les Conditions d'Utilisation de Discord.</p>
+                    <h3>2. Usage Responsable</h3>
+                    <p>Le module d'administration (Panel Infinity) donne des pouvoirs de modération étendus. L'utilisateur est seul responsable des commandes exécutées (ban, kick, clear). Syntia décline toute responsabilité en cas de mauvaise configuration ou d'abus par vos administrateurs.</p>
                     <h3>3. Avertissement IA</h3>
-                    <p>Les conseils financiers générés par l'IA ne sont pas garantis. Vous êtes responsable de vos investissements.</p>
+                    <p>Les fonctionnalités liées à l'IA (analyse de marché, conseils business) sont fournies à titre indicatif. Llama 3.1 est un modèle probabiliste : ses réponses ne constituent en aucun cas un conseil financier officiel. Vous restez maître de vos investissements.</p>
                 </div>
                 <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
             </div>
@@ -414,7 +433,7 @@
     <script>
         let botReady = false;
 
-        // INIT
+        // 1. BOOT SITE
         window.onload = () => {
             setTimeout(() => {
                 document.getElementById('loader').style.transform = 'translateY(-100%)';
@@ -428,7 +447,7 @@
             setTimeout(() => m.style.display = 'none', 500);
         }
 
-        // DISCORD
+        // 2. DISCORD MODAL
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
         function confirmDiscord() {
@@ -436,30 +455,44 @@
             closeDiscordModal();
         }
 
-        // NAVIGATION
+        // 3. NAVIGATION & BACKGROUND MANAGER
         function switchView(id) {
+            // Reset Views
             document.querySelectorAll('.view').forEach(el => { el.classList.remove('active'); el.classList.remove('warp-out'); });
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            // Activate target
             setTimeout(() => document.getElementById(id).classList.add('active'), 50);
             
+            // Update Menu Highlight
             if(id.includes('home')) document.querySelector('.nav-item:nth-child(1)').classList.add('active');
             if(id.includes('labo')) document.querySelector('.nav-item:nth-child(2)').classList.add('active');
             if(id.includes('privacy')) document.querySelector('.nav-item:nth-child(3)').classList.add('active');
             if(id.includes('cgu')) document.querySelector('.nav-item:nth-child(4)').classList.add('active');
 
+            // BACKGROUND & ANIMATION LOGIC
             const homeBg = document.getElementById('home-bg');
             const laboBg = document.getElementById('labo-bg');
+            const labLoader = document.getElementById('lab-loader');
             
             if (id === 'labo-view') {
+                // Show specific Lab loader
+                labLoader.classList.add('active');
+                setTimeout(() => { labLoader.classList.remove('active'); }, 800);
+
                 homeBg.classList.remove('active');
                 laboBg.classList.add('active');
+                
+                // Trigger Progress Bars Animation after loader
                 setTimeout(() => {
                     document.querySelectorAll('.progress-rainbow').forEach(bar => {
                         bar.style.width = bar.getAttribute('data-width');
                     });
-                }, 500);
+                }, 800);
             } else {
+                // Reset Bars
                 document.querySelectorAll('.progress-rainbow').forEach(bar => bar.style.width = '0');
+                
                 if (id === 'bot-view') {
                     homeBg.classList.remove('active');
                     laboBg.classList.remove('active');
@@ -470,7 +503,7 @@
             }
         }
 
-        // MATRIX
+        // 4. MATRIX TRANSITION
         function enterBotMode() {
             const mat = document.getElementById('matrix-layer');
             const txt = document.getElementById('matrix-text');
@@ -497,14 +530,19 @@
             }, 4000);
         }
 
-        // BOOT
+        // 5. BOT BOOT
         function runBoot() {
             const term = document.getElementById('terminal');
             const bar = document.getElementById('boot-fill');
             const status = document.getElementById('boot-status');
+            
             term.innerHTML = "";
             botReady = false;
-            document.querySelectorAll('.cmd-btn').forEach(b => { b.classList.remove('unlocked'); b.style.pointerEvents = "none"; });
+            
+            document.querySelectorAll('.cmd-btn').forEach(b => {
+                b.classList.remove('unlocked');
+                b.style.pointerEvents = "none";
+            });
 
             const msgs = [
                 {t:"Initializing secure kernel...", d:200},
@@ -518,7 +556,10 @@
             ];
 
             let p = 0;
-            const i = setInterval(() => { p += 1; bar.style.width = p+"%"; if(p>=100) clearInterval(i); }, 60);
+            const i = setInterval(() => {
+                p += 1; bar.style.width = p+"%";
+                if(p>=100) clearInterval(i);
+            }, 60);
 
             msgs.forEach(m => setTimeout(() => {
                 term.innerHTML += `<div class="log-line"><span class="sys-prefix">SYS></span> <span style="color:${m.c||'#ccc'}">${m.t}</span></div>`;
@@ -529,13 +570,18 @@
                 botReady = true;
                 status.innerText = "ONLINE"; status.style.color = "#00ff41";
                 document.getElementById('boot-bar').style.opacity = '0';
-                document.querySelectorAll('.cmd-btn').forEach(b => { b.classList.add('unlocked'); b.style.pointerEvents = "auto"; });
+                
+                document.querySelectorAll('.cmd-btn').forEach(b => {
+                    b.classList.add('unlocked');
+                    b.style.pointerEvents = "auto";
+                });
+                
                 term.innerHTML += `<div class="log-line"><span class="sys-prefix">SYS></span> Waiting for user command...</div>`;
                 term.scrollTop = term.scrollHeight;
             }, 6000);
         }
 
-        // EXEC
+        // 6. COMMANDS
         function exec(cmd) {
             if(!botReady) return;
             const term = document.getElementById('terminal');
@@ -567,10 +613,12 @@
             term.scrollTop = term.scrollHeight;
         }
 
-        // GITHUB
+        // 7. GITHUB SEQUENCE
         function triggerGithubSequence() {
             if(!botReady) return;
+            // Freeze Sidebar
             document.getElementById('sidebar-panel').classList.add('panel-disabled');
+            // Hide Terminal
             const termWrap = document.getElementById('terminal-wrapper');
             termWrap.style.opacity = '0';
             setTimeout(() => {
@@ -578,7 +626,12 @@
                 document.getElementById('git-confirm').classList.add('active');
             }, 500);
         }
-        function confirmGithub() { window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank'); cancelGithub(); }
+
+        function confirmGithub() {
+            window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank'); // LIEN GITHUB
+            cancelGithub();
+        }
+
         function cancelGithub() {
             document.getElementById('git-confirm').classList.remove('active');
             const termWrap = document.getElementById('terminal-wrapper');
@@ -589,14 +642,16 @@
             }, 500);
         }
 
-        // EXIT
+        // 8. EXIT
         function exitBotMode() {
             if(!botReady) return;
             document.getElementById('toast').classList.add('visible');
             document.getElementById('bot-view').classList.add('warp-out');
+
             setTimeout(() => {
                 document.getElementById('toast').classList.remove('visible');
                 document.getElementById('navbar').classList.remove('hidden');
+                document.getElementById('home-bg').style.opacity = '1';
                 switchView('home-view');
             }, 1200);
         }
