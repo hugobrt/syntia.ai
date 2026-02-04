@@ -1,17 +1,16 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from threading import Thread
 import logging
 
 app = Flask('')
-CORS(app) # Autorise ton site Admin à lire les données
+CORS(app)
 
-# On cache les logs techniques dans la console
+# On cache les logs techniques
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-# --- LE COFFRE-FORT (Données partagées) ---
-# Le bot viendra écrire ici, et le site viendra lire ici.
+# --- MÉMOIRE PARTAGÉE ---
 bot_stats = {
     "status": "DÉMARRAGE...",
     "members": 0,
@@ -21,26 +20,40 @@ bot_stats = {
 }
 bot_logs = []
 
-# --- ROUTE 1 : Pour UptimeRobot (Touche pas à ça !) ---
+# --- LA BOÎTE AUX LETTRES (COMMANDES) ---
+# Le site web écrit ici, le bot lit ici.
+command_queue = [] 
+
+# --- ROUTE UPTIMEROBOT (INDISPENSABLE) ---
 @app.route('/')
 def home():
-    return "I'm alive! Syntia is running."
+    return "I'm alive! Syntia Core running."
 
-# --- ROUTE 2 : Pour ton Panel (Stats) ---
+# --- API STATS ---
 @app.route('/api/stats')
 def api_stats():
     return jsonify(bot_stats)
 
-# --- ROUTE 3 : Pour ton Panel (Logs) ---
+# --- API LOGS ---
 @app.route('/api/logs')
 def api_logs():
-    return jsonify(bot_logs[-20:]) # Renvoie les 20 derniers logs
+    return jsonify(bot_logs[-20:])
 
-# --- ROUTE 4 : Commande d'arrêt ---
+# --- API RÉCEPTION D'ORDRES (DU SITE) ---
+@app.route('/api/execute', methods=['POST'])
+def api_execute():
+    try:
+        data = request.json
+        command_queue.append(data) # On met l'ordre dans la file
+        bot_logs.append(f"[WEB] Commande reçue : {data.get('action')}")
+        return jsonify({"status": "Ordre reçu"})
+    except:
+        return jsonify({"status": "Erreur"}), 400
+
+# --- API SHUTDOWN ---
 @app.route('/api/shutdown', methods=['POST'])
 def api_shutdown():
-    # On ajoute un log pour dire qu'on a reçu l'ordre
-    bot_logs.append("[PANEL] Demande d'arrêt d'urgence reçue.")
+    command_queue.append({"action": "shutdown"})
     return jsonify({"status": "Signal reçu"})
 
 def run():
