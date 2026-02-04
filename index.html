@@ -14,7 +14,7 @@
             --text-site: #ffffff;
             --primary: #6c5ce7;
             --secondary: #00cec9;
-            --experimental: #ff0055;
+            --experimental: #ff0055; /* COULEUR LABO */
             --glass: rgba(255, 255, 255, 0.03);
             --glass-strong: rgba(20, 20, 20, 0.9);
             --border-site: rgba(255, 255, 255, 0.1);
@@ -61,27 +61,27 @@
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
         
-        /* LABO LOADER (NOUVEAU) */
+        /* LABO LOADER (CINÉMATIQUE) */
         #lab-loader {
             position: fixed; inset: 0; z-index: 9000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
         }
         #lab-loader.active { opacity: 1; pointer-events: auto; }
         
         .lab-title-load {
             font-family: 'JetBrains Mono'; font-weight: 800; font-size: 2.5rem;
             color: #fff; letter-spacing: 2px; margin-bottom: 20px;
-            opacity: 0; animation: fadeIn 0.5s forwards;
+            /* Le texte sera injecté par JS */
         }
         .lab-load-bar-bg {
-            width: 200px; height: 4px; background: #222; border-radius: 2px;
-            overflow: hidden; opacity: 0; animation: fadeIn 0.5s 0.3s forwards;
+            width: 150px; height: 4px; background: #222; border-radius: 2px;
+            overflow: hidden;
         }
         .lab-load-bar-fill {
             width: 0%; height: 100%; background: var(--experimental);
-            box-shadow: 0 0 10px var(--experimental);
-            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 0 15px var(--experimental);
+            transition: width 0.5s ease-out;
         }
 
         /* --- POPUPS --- */
@@ -141,7 +141,7 @@
         .btn-ghost { padding: 15px 30px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 50px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.3s; }
         .btn-ghost:hover { background: #fff; color: #000; }
 
-        /* LABO */
+        /* LABO STYLES */
         .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
         .lab-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-site); padding: 35px; border-radius: 30px; position: relative; overflow: hidden; backdrop-filter: blur(20px); transition: 0.4s; opacity: 0; transform: translateY(30px); }
         .view.active .lab-card { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
@@ -149,18 +149,17 @@
         .lab-card:hover { transform: translateY(-8px); border-color: var(--experimental); background: rgba(255,255,255,0.06); }
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
         
-        /* BARRES PROGRESSION LABO */
+        /* BARRES PROGRESSION LABO (FIXEES SUR COULEUR EXPERIMENTALE) */
         .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
         .progress-fill { 
             height: 100%; width: 0; border-radius: 10px; 
-            background: var(--experimental); /* COULEUR LABO */
-            box-shadow: 0 0 15px var(--experimental);
+            background: var(--experimental); /* PAS D'ARC EN CIEL */
+            box-shadow: 0 0 15px var(--experimental); /* GLOW */
             transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); 
         }
         .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { to { opacity: 1; } }
 
         /* BOT INTERFACE */
         #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
@@ -215,7 +214,7 @@
     </div>
     
     <div id="lab-loader">
-        <div class="lab-title-load">SYNTIA LAB</div>
+        <div class="lab-title-load" id="lab-text"></div>
         <div class="lab-load-bar-bg"><div class="lab-load-bar-fill" id="lab-main-bar"></div></div>
     </div>
 
@@ -330,14 +329,22 @@
             <div class="bot-grid" id="bot-ui">
                 <div class="panel" id="sidebar-panel">
                     <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
+                    
                     <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
                     <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
                     <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
-                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()"><i class="fab fa-github"></i> GITHUB</button>
-                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()"><i class="fas fa-power-off"></i> SIGNAL LOST</button>
+                    
+                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()">
+                        <i class="fab fa-github"></i> GITHUB
+                    </button>
+
+                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()">
+                        <i class="fas fa-power-off"></i> SIGNAL LOST
+                    </button>
                 </div>
 
                 <div class="panel" style="position:relative;">
+                    
                     <div id="terminal-wrapper">
                         <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
                             <span>SSH: root@syntia-core</span>
@@ -412,7 +419,7 @@
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
         function confirmDiscord() {
-            window.open('https://discord.gg/muJTPWcpjC', '_blank'); // REMPLACE TON LIEN
+            window.open('TON_LIEN_DISCORD', '_blank'); // REMPLACE TON LIEN
             closeDiscordModal();
         }
 
@@ -430,26 +437,41 @@
             const homeBg = document.getElementById('home-bg');
             const laboBg = document.getElementById('labo-bg');
             const labLoader = document.getElementById('lab-loader');
-            const labBar = document.getElementById('lab-main-bar');
+            const labTitle = document.getElementById('lab-text');
+            const labLoadBar = document.getElementById('lab-main-bar');
             
             if (id === 'labo-view') {
                 // Show Lab Loader
                 labLoader.classList.add('active');
-                labBar.style.width = '0%';
-                
-                // Animate small bar
-                setTimeout(() => { labBar.style.width = '100%'; }, 100);
+                labTitle.innerText = "";
+                labLoadBar.style.width = "0%";
 
-                // Reveal Page after 1.2s
-                setTimeout(() => { 
-                    labLoader.classList.remove('active'); 
-                    document.querySelectorAll('.progress-fill').forEach(bar => {
-                        bar.style.width = bar.getAttribute('data-width');
-                    });
-                }, 1200);
-
-                homeBg.classList.remove('active');
-                laboBg.classList.add('active');
+                // 1. Typewriter Animation
+                const text = "SYNTIA LAB";
+                let i = 0;
+                const typeInt = setInterval(() => {
+                    labTitle.innerText += text.charAt(i);
+                    i++;
+                    if(i >= text.length) {
+                        clearInterval(typeInt);
+                        // 2. Load Bar Animation
+                        setTimeout(() => {
+                            labLoadBar.style.width = "100%";
+                            // 3. Reveal Page
+                            setTimeout(() => {
+                                labLoader.classList.remove('active');
+                                homeBg.classList.remove('active');
+                                laboBg.classList.add('active');
+                                // 4. Fill Cards
+                                setTimeout(() => {
+                                    document.querySelectorAll('.progress-fill').forEach(bar => {
+                                        bar.style.width = bar.getAttribute('data-width');
+                                    });
+                                }, 300);
+                            }, 600);
+                        }, 200);
+                    }
+                }, 70); // Vitesse de frappe
                 
             } else {
                 document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '0');
