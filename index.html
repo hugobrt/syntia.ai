@@ -9,22 +9,36 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
         :root {
-            /* ONE UI THEME */
+            /* ONE UI THEME (DARK DEFAULT) */
             --bg-site: #050505;
+            --bg-panel: #0a0a0a;
             --text-site: #ffffff;
+            --text-muted: #aaaaaa;
             --primary: #6c5ce7;
             --secondary: #00cec9;
             --experimental: #ff0055; 
-            --glass: rgba(255, 255, 255, 0.03);
-            --border-site: rgba(255, 255, 255, 0.1);
             
-            /* HACKER THEME (V8) */
-            --bg-bot: #000000;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 10px;
+            
+            /* HACKER THEME COLORS */
             --green: #00ff41;
             --dim-green: #004411;
             --red: #ff3333;
             
             --ease: cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        /* LIGHT MODE VARIABLES */
+        body.light-mode {
+            --bg-site: #f2f4f8;
+            --bg-panel: #ffffff;
+            --text-site: #1a1a1a;
+            --text-muted: #555555;
+            --glass: rgba(255, 255, 255, 0.75); 
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --primary: #5842d8; 
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,9 +47,25 @@
             font-family: 'Outfit', sans-serif; overflow: hidden;
             height: 100vh; width: 100vw;
             overscroll-behavior: none;
+            transition: background 0.5s ease, color 0.5s ease;
         }
 
-        /* --- BACKGROUNDS ANIMÉS --- */
+        /* --- THEME TOGGLE BUTTON --- */
+        #theme-toggle {
+            position: fixed; 
+            bottom: 30px; right: 30px; /* Bas droite sur PC */
+            z-index: 2000;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; backdrop-filter: blur(10px);
+            transition: 0.3s; color: var(--text-site);
+            font-size: 1.2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        #theme-toggle:hover { transform: scale(1.1); background: var(--text-site); color: var(--bg-site); }
+
+        /* --- BACKGROUNDS --- */
         .bg-layer { position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none; }
         .bg-layer.active { opacity: 1; }
 
@@ -46,7 +76,7 @@
         }
 
         .ambient-light { 
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            background: radial-gradient(circle at center, transparent 0%, var(--bg-site) 100%);
             animation: gradientFlow 20s infinite ease-in-out; 
         }
 
@@ -56,9 +86,10 @@
         @keyframes float { from { transform: translate(0,0); } to { transform: translate(30px, 30px); } }
 
         .blueprint-grid {
-            background-color: #050505;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-color: var(--bg-site);
+            background-image: linear-gradient(var(--glass-border) 1px, transparent 1px), linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
             background-size: 40px 40px; animation: gridMove 20s linear infinite;
+            transition: background 0.5s;
         }
         @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 40px; } }
 
@@ -100,10 +131,20 @@
         #wip-modal.visible, #discord-modal.active { opacity: 1; pointer-events: auto; }
         
         .wip-box, .discord-box {
-            background: #111; border: 1px solid var(--border-site); padding: 40px;
+            background: var(--bg-panel); border: 1px solid var(--glass-border); padding: 40px;
             border-radius: 30px; text-align: center; max-width: 500px; width: 100%;
             transform: scale(0.9); transition: 0.3s;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
+        
+        .wip-box h2, .wip-box p, .discord-box h2, .discord-box p { color: var(--text-site) !important; }
+        .wip-box p, .discord-box p { color: var(--text-muted) !important; }
+        
+        .wip-box i { margin-bottom: 30px !important; display: block; font-size: 3.5rem !important; }
+        .wip-box h2 { margin-bottom: 25px !important; font-size: 2.2rem; }
+        .wip-box p { margin-bottom: 40px !important; line-height: 1.6; padding: 0 10px; font-size: 1.1rem; }
+        .wip-box .btn-main { width: 100%; justify-content: center; padding: 20px; font-size: 1.1rem; }
+
         #wip-modal.visible .wip-box, #discord-modal.active .discord-box { transform: scale(1); }
         .discord-icon { font-size: 4rem; color: #5865F2; margin-bottom: 20px; }
 
@@ -123,16 +164,16 @@
             z-index: 1000; transition: transform 0.5s var(--ease), padding 0.3s; 
         }
         nav.hidden { transform: translateY(-150%); }
-        .brand { font-size: 1.5rem; font-weight: 800; cursor: pointer; z-index: 2; }
+        .brand { font-size: 1.5rem; font-weight: 800; cursor: pointer; z-index: 2; color: var(--text-site); }
         
         .nav-pills { 
-            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px; 
-            display: flex; gap: 5px; border: 1px solid var(--border-site); 
-            backdrop-filter: blur(10px); 
+            background: var(--glass); padding: 5px; border-radius: 50px; 
+            display: flex; gap: 5px; border: 1px solid var(--glass-border); 
+            backdrop-filter: blur(var(--glass-blur)); 
             overflow-x: auto; max-width: 100%;
         }
-        .nav-item { padding: 10px 25px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; color: #aaa; transition: 0.3s; white-space: nowrap; }
-        .nav-item.active { background: #fff; color: #000; font-weight: 800; }
+        .nav-item { padding: 10px 25px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: 0.3s; white-space: nowrap; }
+        .nav-item.active { background: var(--text-site); color: var(--bg-site); font-weight: 800; }
 
         /* --- VIEWS --- */
         .view-container { position: relative; width: 100vw; height: 100vh; }
@@ -140,8 +181,8 @@
             position: absolute; inset: 0; padding: 120px 10%; 
             display: flex; flex-direction: column; 
             opacity: 0; 
-            pointer-events: none; /* Sécurité de base */
-            visibility: hidden; /* Sécurité ANTI CLIC FANTOME */
+            pointer-events: none; 
+            visibility: hidden;
             transform: scale(0.95); 
             transition: opacity 0.8s var(--ease), transform 0.8s var(--ease), visibility 0.8s;
             overflow-y: auto; overflow-x: hidden; 
@@ -154,116 +195,146 @@
             transform: scale(1); 
         }
 
-        h1 { font-size: 5rem; line-height: 1; margin-bottom: 25px; }
-        .glass-card { background: var(--glass); border: 1px solid var(--border-site); padding: 30px; border-radius: 30px; backdrop-filter: blur(10px); width: fit-content; margin-bottom: 20px; max-width: 800px; }
-        .btn-main { padding: 18px 45px; background: #fff; color: #000; border-radius: 50px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; font-size: 1rem; }
-        .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.3); }
-        .btn-ghost { padding: 15px 30px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 50px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.3s; }
-        .btn-ghost:hover { background: #fff; color: #000; }
+        h1 { font-size: 5rem; line-height: 1; margin-bottom: 25px; color: var(--text-site); }
+        .glass-card { 
+            background: var(--glass); border: 1px solid var(--glass-border); 
+            padding: 30px; border-radius: 30px; backdrop-filter: blur(var(--glass-blur)); 
+            width: fit-content; margin-bottom: 20px; max-width: 800px; 
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        }
+        .glass-card h3 { color: var(--text-site); margin-bottom: 15px; }
+        .glass-card p { color: var(--text-muted); line-height: 1.6; margin: 0; }
 
-        /* LABO NORMAL CARDS */
-        .lab-grid { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 30px; margin-top: 40px; padding-bottom: 50px; 
+        /* BOUTON TERMINAL SPECIAL */
+        .btn-main { padding: 18px 45px; background: var(--text-site); color: var(--bg-site); border-radius: 50px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; font-size: 1rem; }
+        .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.3); }
+        
+        /* Style PC pour le bouton Terminal */
+        .btn-terminal {
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            color: var(--text-site);
         }
+        /* Style PC Light Mode */
+        body.light-mode .btn-terminal {
+            background: rgba(0,0,0,0.05); 
+            border: 1px solid rgba(0,0,0,0.1); 
+            color: var(--text-site);
+        }
+
+        .btn-ghost { padding: 15px 30px; background: rgba(255,255,255,0.1); color: var(--text-site); border-radius: 50px; font-weight: 700; border: 1px solid var(--glass-border); cursor: pointer; transition: 0.3s; }
+        body.light-mode .btn-ghost { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); }
+        .btn-ghost:hover { background: var(--text-site); color: var(--bg-site); }
+
+        /* LABO CARDS */
+        .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
         .lab-card { 
-            background: rgba(255,255,255,0.03); border: 1px solid var(--border-site); 
+            background: var(--glass); border: 1px solid var(--glass-border); 
             padding: 35px; border-radius: 30px; position: relative; overflow: hidden; 
-            backdrop-filter: blur(20px); opacity: 0; transform: translateY(50px) scale(0.95);
+            backdrop-filter: blur(var(--glass-blur)); opacity: 0; transform: translateY(50px) scale(0.95);
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
         }
+        .lab-card h3 { color: var(--text-site); }
+        .lab-card .lab-desc { color: var(--text-muted); }
+        
         .lab-grid.show .lab-card { opacity: 1; transform: translateY(0) scale(1); }
-        .lab-card:hover {
-            transform: translateY(-8px) scale(1.02) !important;
-            border-color: var(--experimental);
-            background: rgba(255,255,255,0.06);
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);
-        }
+        .lab-card:hover { transform: translateY(-8px) scale(1.02) !important; border-color: var(--experimental); background: rgba(255, 0, 85, 0.05); box-shadow: 0 10px 30px rgba(255, 0, 85, 0.15); }
+        
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
-        .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
+        .progress-track { width: 100%; height: 6px; background: rgba(128,128,128,0.2); border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0; border-radius: 10px; background: var(--experimental); box-shadow: 0 0 15px var(--experimental); transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); }
-        .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
+        .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: var(--text-muted); }
 
         /* LABO LOCKED */
-        .lab-locked-section { margin-top: 60px; padding-bottom: 50px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px; }
-        .lab-section-title { font-family: 'JetBrains Mono'; color: #444; letter-spacing: 2px; margin-bottom: 30px; font-size: 0.9rem; }
-        .lab-card-red { position: relative; background: #050505; border-radius: 30px; overflow: hidden; padding: 3px; opacity: 0; transform: translateY(50px); transition: all 0.6s ease; }
+        .lab-locked-section { margin-top: 60px; padding-bottom: 50px; border-top: 1px solid var(--glass-border); padding-top: 30px; }
+        .lab-section-title { font-family: 'JetBrains Mono'; color: var(--text-muted); letter-spacing: 2px; margin-bottom: 30px; font-size: 0.9rem; }
+        .lab-card-red { position: relative; background: var(--bg-panel); border-radius: 30px; overflow: hidden; padding: 3px; opacity: 0; transform: translateY(50px); transition: all 0.6s ease; }
         .lab-grid.show .lab-card-red { opacity: 1; transform: translateY(0); }
         .lab-card-red::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(transparent, transparent, transparent, var(--red)); animation: rotateAura 4s linear infinite; }
         @keyframes rotateAura { 100% { transform: rotate(360deg); } }
-        .lab-card-red-inner { background: #0a0a0a; border-radius: 28px; height: 100%; width: 100%; position: relative; z-index: 2; padding: 35px; display: flex; flex-direction: column; justify-content: center; }
+        .lab-card-red-inner { background: var(--bg-panel); border-radius: 28px; height: 100%; width: 100%; position: relative; z-index: 2; padding: 35px; display: flex; flex-direction: column; justify-content: center; }
         .locked-content { opacity: 0.4; filter: grayscale(1); transition: 0.3s; }
-        .locked-icon { font-size: 3rem; color: #333; margin-bottom: 15px; }
+        .locked-icon { font-size: 3rem; color: var(--text-site); margin-bottom: 15px; }
 
         /* BOT INTERFACE */
-        #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
-        .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
+        #bot-view { background: var(--bg-site); font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
+        body.light-mode .scanlines { opacity: 0.1; }
+        .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; transition: opacity 0.5s; }
+        
         .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
-        .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; transition: 0.3s; }
-        
-        .cmd-btn { 
-            background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; 
-            color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; 
-            transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; 
-            pointer-events: none; /* Désactivé par défaut */
+        .panel { 
+            background: var(--bg-panel); border: 1px solid var(--glass-border); 
+            border-radius: 20px; padding: 25px; display: flex; flex-direction: column; 
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden; transition: 0.3s; 
         }
-        
-        /* CORRECTION CRITIQUE : UNLOCKED SEULEMENT SI LA VUE EST ACTIVE */
-        .cmd-btn.unlocked { 
-            cursor: pointer; 
-            color: #aaa; border-color: var(--dim-green); 
-        }
-        .view.active .cmd-btn.unlocked {
-            pointer-events: auto; /* Activé UNIQUEMENT quand la vue est visible */
-        }
+        body:not(.light-mode) .panel { border-color: var(--dim-green); box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); }
 
+        .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
+        
+        .cmd-btn { background: rgba(128,128,128,0.1); border: 1px solid transparent; padding: 15px; border-radius: 12px; color: var(--text-muted); text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; }
+        .cmd-btn.unlocked { cursor: pointer; color: var(--text-site); border-color: var(--glass-border); }
+        .view.active .cmd-btn.unlocked { pointer-events: auto; }
         .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
         .kill-btn { margin-top: 10px; border-color: var(--red) !important; color: var(--red) !important; text-align: center; justify-content: center; }
-        .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
-        .github-btn { margin-top: auto; border-color: #fff !important; color: #fff !important; text-align: center; justify-content: center; margin-bottom: 10px; }
-        .github-btn:hover { background: #fff !important; color: #000 !important; }
+        .kill-btn:hover { background: var(--red) !important; color: #fff !important; }
+        .github-btn { margin-top: auto; border-color: var(--text-site) !important; color: var(--text-site) !important; text-align: center; justify-content: center; margin-bottom: 10px; }
+        .github-btn:hover { background: var(--text-site) !important; color: var(--bg-site) !important; }
         
         #terminal-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; transition: opacity 0.5s; }
-        #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
+        #terminal { flex-grow: 1; overflow-y: auto; padding: 15px; font-size: 0.9rem; min-height: 200px; background: #000; color: var(--green); border-radius: 10px; margin-bottom: 10px; }
         .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
         .term-link { display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
         .term-link:hover { background: var(--green); color: #000; }
-        .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .boot-bar-con { width: 100%; height: 4px; background: #222; border-radius: 2px; position: relative; overflow: hidden; flex-shrink: 0; }
         .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
         
         #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
         #git-confirm.active { display: flex; opacity: 1; }
         
-        /* BOUTON MODIFIÉ (PLUS PETIT) */
-        .rainbow-btn { 
-            position: relative; 
-            padding: 12px 35px; /* Réduit */
-            background: #000; color: #fff; 
-            font-family: 'JetBrains Mono'; font-weight: bold; 
-            font-size: 0.9rem; /* Réduit */
-            border: none; border-radius: 12px; cursor: pointer; 
-            z-index: 1; overflow: hidden; margin-bottom: 20px; 
-            min-width: 200px; /* Taille fixe raisonnable */
-        }
+        .rainbow-btn { position: relative; padding: 12px 35px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 0.9rem; border: none; border-radius: 12px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; min-width: 200px; }
         .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
         .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 10px; z-index: -1; }
         
-        .cancel-btn { background: transparent; color: #888; border: 1px solid #333; padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
+        .cancel-btn { background: transparent; color: var(--text-muted); border: 1px solid var(--glass-border); padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
+        .cancel-btn:hover { border-color: var(--text-site); color: var(--text-site); }
         
         .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
         @keyframes warp { 0% { transform: scale(1); filter: blur(0); opacity: 1; } 40% { transform: scale(1.1); filter: blur(5px); opacity: 1; } 100% { transform: scale(0.1, 0.01); filter: blur(50px); opacity: 0; } }
-        #toast { position: fixed; bottom: 40px; right: 40px; z-index: 20000; background: #000; border: 1px solid var(--red); color: var(--red); padding: 20px 30px; border-radius: 10px; font-family: 'JetBrains Mono'; transform: translateX(200%); transition: 0.5s; display: flex; align-items: center; gap: 15px; }
+        
+        #toast { position: fixed; bottom: 90px; right: 30px; z-index: 20000; background: #000; border: 1px solid var(--red); color: var(--red); padding: 20px 30px; border-radius: 10px; font-family: 'JetBrains Mono'; transform: translateX(200%); transition: 0.5s; display: flex; align-items: center; gap: 15px; }
         #toast.visible { transform: translateX(0); }
+        
         .legal-content { max-width: 800px; margin: 0 auto; margin-top: 50px; }
-        .legal-card { background: var(--glass); padding: 40px; border-radius: 30px; border: 1px solid var(--border-site); margin-bottom: 30px; backdrop-filter: blur(10px); }
-        .legal-card h3 { font-size: 1.2rem; margin-bottom: 10px; color: #fff; margin-top: 20px; }
-        .legal-card p { color: #aaa; line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
-        .legal-card ul { margin-left: 20px; color: #aaa; margin-bottom: 15px; }
+        .legal-card { background: var(--glass); padding: 40px; border-radius: 30px; border: 1px solid var(--glass-border); margin-bottom: 30px; backdrop-filter: blur(10px); }
+        .legal-card h3 { font-size: 1.2rem; margin-bottom: 10px; color: var(--text-site); margin-top: 20px; }
+        .legal-card p { color: var(--text-muted); line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
+        .legal-card ul { margin-left: 20px; color: var(--text-muted); margin-bottom: 15px; }
 
         /* --- RESPONSIVE MOBILE --- */
         @media(max-width: 900px) {
             h1 { font-size: 3rem; }
             nav { padding: 20px 25px; }
+            
+            /* MODIF: Bouton Thème revient en haut sur Mobile + Visible */
+            #theme-toggle { 
+                top: 20px; right: 20px; bottom: auto; 
+                width: 50px; height: 50px;
+                background: var(--bg-panel); /* Fond opaque */
+                border: 2px solid var(--text-site); /* Bordure visible */
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Ombre */
+            } 
+            .nav-pills { margin-right: 60px; }
+            
+            /* MODIF: Bouton Terminal Bot sur Mobile */
+            .btn-terminal {
+                background: var(--bg-panel) !important; /* Fond opaque */
+                border: 2px solid var(--text-site) !important; /* Bordure visible */
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; /* Ombre */
+                color: var(--text-site) !important;
+                opacity: 1 !important;
+            }
+            
             .view { padding: 100px 20px; }
             .bot-grid { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 15px; }
             #sidebar-panel { flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 15px; align-items: center; }
@@ -275,8 +346,7 @@
             .hero > div[style*="display:flex"] { flex-direction: column; width: 100%; }
             .btn-main { width: 100%; justify-content: center; }
             #sidebar-panel > div:first-child { display: none; }
-            
-            .rainbow-btn { width: 100%; } /* Sur mobile, il reste large pour l'ergonomie */
+            .rainbow-btn { width: 100%; }
         }
         @media(max-width: 400px) {
             h1 { font-size: 2.5rem; }
@@ -286,6 +356,10 @@
     </style>
 </head>
 <body>
+
+    <div id="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-sun"></i>
+    </div>
 
     <div class="bg-layer active ambient-light" id="home-bg">
         <div class="blob b1"></div>
@@ -301,9 +375,9 @@
 
     <div id="wip-modal">
         <div class="wip-box">
-            <i class="fas fa-hammer" style="font-size:3rem; color:var(--primary); margin-bottom:20px;"></i>
+            <i class="fas fa-hammer" style="font-size:3rem; color:var(--primary);"></i>
             <h2>Projet en Cours</h2>
-            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia est Beta. Des fonctionnalités ou erreurs peuvent survenirs.</p>
+            <p>Le Hub Syntia est en phase Beta. Des fonctionnalités ou erreurs peuvent survenir.</p>
             <button class="btn-main" onclick="closeWip()">ENTRER</button>
         </div>
     </div>
@@ -312,7 +386,7 @@
         <div class="discord-box">
             <i class="fab fa-discord discord-icon"></i>
             <h2>Rejoindre l'Élite ?</h2>
-            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
+            <p>Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
             <div style="display:flex; gap:15px; justify-content:center; margin-top:30px; flex-wrap:wrap;">
                 <button class="btn-ghost" onclick="closeDiscordModal()">ANNULER</button>
                 <button class="btn-main" onclick="confirmDiscord()">REJOINDRE</button>
@@ -346,15 +420,15 @@
             <div class="hero" style="height:100vh; display:flex; flex-direction:column; justify-content:center;">
                 <div style="font-weight: 800; color: var(--primary); margin-bottom: 20px;">V4.0 STABLE</div>
                 <h1>Bonjour, <br>Bienvenue chez Syntia.</h1>
-                <div class="glass-card" style="max-width:800px;">
-                    <h3 style="color:#fff; margin-bottom:15px;">La Fusion Business & Gaming</h3>
-                    <p style="color:#ccc; line-height:1.6; margin:0;">
+                <div class="glass-card">
+                    <h3>La Fusion Business & Gaming</h3>
+                    <p>
                         Syntia est un serveur discord alliant business et jeu vidéo, c'est un serveur conviviale et agréable.
                     </p>
                 </div>
                 <div style="display:flex; gap:20px;">
                     <button class="btn-main" onclick="openDiscordModal()"><i class="fab fa-discord"></i> Discord</button>
-                    <button class="btn-main" style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);" onclick="enterBotMode()">
+                    <button class="btn-main btn-terminal" onclick="enterBotMode()">
                         <i class="fas fa-terminal"></i> Terminal Bot
                     </button>
                 </div>
@@ -364,40 +438,40 @@
         <div id="labo-view" class="view">
             <div style="padding-top:100px;">
                 <h1>Syntia <span style="color:var(--experimental)">Lab.</span></h1>
-                <p style="color:#aaa; letter-spacing:2px; font-family:'JetBrains Mono'; margin-bottom:40px;">EXPERIMENTAL // DEVELOPMENT ROADMAP</p>
+                <p style="color:var(--text-muted); letter-spacing:2px; font-family:'JetBrains Mono'; margin-bottom:40px;">EXPERIMENTAL // DEVELOPMENT ROADMAP</p>
 
                 <div class="lab-grid" id="lab-cards-container">
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--green); border-color:var(--green)">DEPLOYED v4.0</span>
-                        <h3 class="lab-title">Infinity Panel</h3>
+                        <h3>Infinity Panel</h3>
                         <p class="lab-desc">Architecture centrale du bot. Gestion des rôles, logs avancés et sécurité neuronale.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>100%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="100%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--green); border-color:var(--green)">RELEASES</span>
-                        <h3 class="lab-title">Serveur Discord</h3>
+                        <h3>Serveur Discord</h3>
                         <p class="lab-desc">Structure et configuration du serveur communautaire.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>100%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="100%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--primary); border-color:var(--primary)">BETA TEST</span>
-                        <h3 class="lab-title">Chat Bot</h3>
+                        <h3>Chat Bot</h3>
                         <p class="lab-desc">IA conversationnelle basée sur Llama 3.1 presque prête.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>80%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="80%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:#ffae00; border-color:#ffae00">PRE-DEV</span>
-                        <h3 class="lab-title">Web Dashboard</h3>
+                        <h3>Web Dashboard</h3>
                         <p class="lab-desc">Interface de gestion web pour les paramètres du bot.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>20%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="20%"></div></div>
                     </div>
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--experimental); border-color:var(--experimental)">RESEARCH</span>
-                        <h3 class="lab-title">Auto Convert Devise</h3>
+                        <h3>Auto Convert Devise</h3>
                         <p class="lab-desc">Module de conversion automatique temps réel.</p>
                         <div class="progress-meta"><span>COMPLETION</span><span>10%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="10%"></div></div>
@@ -407,28 +481,24 @@
                 <div class="lab-locked-section">
                     <div class="lab-section-title">RESTRICTED AREA // CLASSIFIED</div>
                     <div class="lab-grid show" style="margin-top:20px;">
-                        
                         <div class="lab-card-red">
                             <div class="lab-card-red-inner">
                                 <div class="locked-content">
                                     <span class="lab-status" style="color:#444; border-color:#444">LOCKED</span>
-                                    <h3 class="lab-title" style="color:#666;">Panel Modo</h3>
+                                    <h3 style="color:#666;">Panel Modo</h3>
                                     <p class="lab-desc" style="color:#333;">Outils de modération avancés pour le staff uniquement.</p>
                                     <div style="font-size:0.7rem; color:#444; margin-top:10px;"><i class="fas fa-eye-slash"></i> NO ACCESS</div>
                                 </div>
                             </div>
                         </div>
-
                         <div class="lab-card-red">
                             <div class="lab-card-red-inner" style="align-items:center; text-align:center;">
                                 <i class="fas fa-lock locked-icon"></i>
                                 <div style="color:#333; font-weight:800; letter-spacing:3px;">TOP SECRET</div>
                             </div>
                         </div>
-
                     </div>
                 </div>
-
             </div>
         </div>
 
@@ -436,7 +506,7 @@
             <div class="scanlines"></div>
             <div class="bot-grid" id="bot-ui">
                 <div class="panel" id="sidebar-panel">
-                    <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
                     <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
                     <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
                     <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
@@ -445,7 +515,7 @@
                 </div>
                 <div class="panel" style="position:relative;">
                     <div id="terminal-wrapper">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:var(--text-muted); font-size:0.8rem;">
                             <span>SSH: root@syntia-core</span>
                             <span id="boot-status" style="color:yellow">CONNECTING...</span>
                         </div>
@@ -453,9 +523,9 @@
                         <div class="boot-bar-con" id="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
                     </div>
                     <div id="git-confirm">
-                        <i class="fab fa-github" style="font-size:4rem; color:#fff; margin-bottom:30px;"></i>
-                        <h2 style="margin-bottom:10px; color:#fff;">EXTERNAL LINK DETECTED</h2>
-                        <p style="color:#aaa; margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
+                        <i class="fab fa-github" style="font-size:4rem; color:var(--text-site); margin-bottom:30px;"></i>
+                        <h2 style="margin-bottom:10px; color:var(--text-site);">EXTERNAL LINK DETECTED</h2>
+                        <p style="color:var(--text-muted); margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
                         <button class="rainbow-btn" onclick="confirmGithub()">ACCÉDER AU REPO</button>
                         <button class="cancel-btn" onclick="cancelGithub()">ANNULER</button>
                     </div>
@@ -500,11 +570,33 @@
         let botReady = false;
 
         window.onload = () => {
+            // Check Local Storage for Theme
+            if(localStorage.getItem('theme') === 'light') {
+                document.body.classList.add('light-mode');
+                document.getElementById('theme-toggle').innerHTML = '<i class="fas fa-moon"></i>';
+            }
+
             setTimeout(() => {
                 document.getElementById('loader').style.transform = 'translateY(-100%)';
                 setTimeout(() => document.getElementById('wip-modal').classList.add('visible'), 500);
             }, 800);
         };
+
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('light-mode');
+            const icon = document.querySelector('#theme-toggle i');
+            
+            if(body.classList.contains('light-mode')) {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            } else {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
 
         function closeWip() {
             const m = document.getElementById('wip-modal');
@@ -552,7 +644,7 @@
                                 homeBg.classList.remove('active');
                                 laboBg.classList.add('active');
                                 document.getElementById('lab-cards-container').classList.add('show');
-                                // Trigger lock cards reveal too
+                                
                                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '1');
                                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(0)');
                                 
@@ -568,7 +660,6 @@
             } else {
                 document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '0');
                 document.getElementById('lab-cards-container').classList.remove('show');
-                // Hide locked cards
                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '0');
                 document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(50px)');
                 
@@ -594,6 +685,7 @@
             setTimeout(() => {
                 document.getElementById('navbar').classList.add('hidden');
                 document.getElementById('home-bg').style.opacity = '0';
+                document.getElementById('theme-toggle').style.display = 'none'; // Hide toggle in bot mode
                 switchView('bot-view');
             }, 3000);
             setTimeout(() => {
@@ -696,6 +788,7 @@
                 document.getElementById('toast').classList.remove('visible');
                 document.getElementById('navbar').classList.remove('hidden');
                 document.getElementById('home-bg').style.opacity = '1';
+                document.getElementById('theme-toggle').style.display = 'flex'; // Show toggle again
                 switchView('home-view');
             }, 1200);
         }
