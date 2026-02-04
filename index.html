@@ -9,16 +9,16 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
         :root {
-            /* ONE UI THEME */
+            /* ONE UI COLORS */
             --bg-site: #050505;
             --text-site: #ffffff;
             --primary: #6c5ce7;
             --secondary: #00cec9;
-            --experimental: #ff0055; /* Rose Labo */
+            --experimental: #ff0055; 
             --glass: rgba(255, 255, 255, 0.03);
             --border-site: rgba(255, 255, 255, 0.1);
             
-            /* HACKER THEME (V8) */
+            /* HACKER TERMINAL COLORS */
             --bg-bot: #000000;
             --green: #00ff41;
             --dim-green: #004411;
@@ -34,7 +34,7 @@
             height: 100vh; width: 100vw;
         }
 
-        /* --- BACKGROUNDS --- */
+        /* --- BACKGROUND EFFECTS --- */
         .bg-layer { position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none; }
         .bg-layer.active { opacity: 1; }
 
@@ -51,7 +51,7 @@
         }
         @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 40px; } }
 
-        /* --- LOADERS --- */
+        /* --- LOADER & POPUPS --- */
         #loader {
             position: fixed; inset: 0; z-index: 10000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -59,25 +59,6 @@
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
         
-        #lab-loader {
-            position: fixed; inset: 0; z-index: 9000; background: #000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.5s;
-        }
-        #lab-loader.active { opacity: 1; pointer-events: auto; }
-        
-        .lab-typewriter {
-            font-family: 'JetBrains Mono'; font-weight: 800; font-size: 2rem;
-            color: var(--experimental); letter-spacing: 4px;
-            border-right: 4px solid var(--experimental);
-            padding-right: 10px; margin-bottom: 20px;
-            animation: blinkCursor 0.7s infinite;
-        }
-        .lab-load-bar-bg { width: 150px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
-        .lab-load-bar-fill { width: 0%; height: 100%; background: var(--experimental); box-shadow: 0 0 15px var(--experimental); transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
-        @keyframes blinkCursor { 50% { border-color: transparent; } }
-
-        /* --- POPUPS --- */
         #wip-modal, #discord-modal {
             position: fixed; inset: 0; z-index: 9999;
             background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
@@ -86,25 +67,15 @@
         }
         #wip-modal.visible, #discord-modal.active { opacity: 1; pointer-events: auto; }
         
-        .wip-box, .discord-box {
+        .modal-box {
             background: #111; border: 1px solid var(--border-site); padding: 40px;
             border-radius: 30px; text-align: center; max-width: 500px;
             transform: scale(0.9); transition: 0.3s;
         }
-        #wip-modal.visible .wip-box, #discord-modal.active .discord-box { transform: scale(1); }
-        .discord-icon { font-size: 4rem; color: #5865F2; margin-bottom: 20px; }
+        #wip-modal.visible .modal-box, #discord-modal.active .modal-box { transform: scale(1); }
 
-        /* --- MATRIX --- */
-        #matrix-layer { position: fixed; inset: 0; z-index: 8000; background: #000; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
-        #matrix-layer.active { opacity: 1; pointer-events: auto; }
-        canvas { position: absolute; inset: 0; display: block; }
-        .matrix-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; font-family: 'JetBrains Mono'; width: 100%; }
-        .scramble-text { font-size: 3.5rem; font-weight: 800; color: var(--green); text-shadow: 0 0 20px var(--green); background: rgba(0,0,0,0.8); padding: 20px 40px; border: 1px solid var(--green); border-radius: 15px; display: inline-block; }
-        .access-sub { margin-top: 20px; color: var(--green); letter-spacing: 3px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: 0.5s; font-weight: bold; }
-        .access-sub.visible { opacity: 1; transform: translateY(0); }
-
-        /* --- NAV --- */
-        nav { position: fixed; top: 0; width: 100%; padding: 30px 60px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; transition: transform 0.5s var(--ease); }
+        /* --- NAVIGATION --- */
+        nav { position: fixed; top: 0; width: 100%; padding: 30px 60px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; transition: transform 0.5s; }
         nav.hidden { transform: translateY(-150%); }
         .brand { font-size: 1.5rem; font-weight: 800; cursor: pointer; }
         .nav-pills { background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px; display: flex; gap: 5px; border: 1px solid var(--border-site); backdrop-filter: blur(10px); }
@@ -116,113 +87,59 @@
         .view { position: absolute; inset: 0; padding: 120px 10%; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(0.95); transition: 0.8s var(--ease); overflow-y: auto; overflow-x: hidden; }
         .view.active { opacity: 1; pointer-events: auto; transform: scale(1); }
 
-        h1 { font-size: 5rem; line-height: 1; margin-bottom: 25px; }
+        /* HOME STYLE */
+        h1 { font-size: 5rem; line-height: 1.1; margin-bottom: 25px; }
         .glass-card { background: var(--glass); border: 1px solid var(--border-site); padding: 30px; border-radius: 30px; backdrop-filter: blur(10px); width: fit-content; margin-bottom: 20px; }
         .btn-main { padding: 18px 45px; background: #fff; color: #000; border-radius: 50px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; font-size: 1rem; }
         .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.3); }
-        
-        /* RESTORED GHOST BUTTON FOR DISCORD POPUP */
-        .btn-ghost { padding: 15px 30px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 50px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.3s; }
-        .btn-ghost:hover { background: #fff; color: #000; }
 
-        /* LABO NORMAL CARDS */
+        /* LABO STYLE */
         .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
         .lab-card { 
             background: rgba(255,255,255,0.03); border: 1px solid var(--border-site); 
             padding: 35px; border-radius: 30px; position: relative; overflow: hidden; 
-            backdrop-filter: blur(20px); opacity: 0; transform: translateY(50px) scale(0.95);
+            backdrop-filter: blur(20px); opacity: 0; transform: translateY(50px);
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .lab-grid.show .lab-card { opacity: 1; transform: translateY(0) scale(1); }
-        
-        /* --- RESTORED: HOVER EFFECT (RED BORDER + SCALE) --- */
-        .lab-card:hover {
-            transform: translateY(-8px) scale(1.02) !important;
-            border-color: var(--experimental); /* C'est ça qui fait le bord rouge/rose */
-            background: rgba(255,255,255,0.06);
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);
-        }
-
+        .lab-grid.show .lab-card { opacity: 1; transform: translateY(0); }
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
         .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; width: 0; border-radius: 10px; background: var(--experimental); box-shadow: 0 0 15px var(--experimental); transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); }
+        .progress-fill { height: 100%; width: 0; border-radius: 10px; background: var(--experimental); box-shadow: 0 0 15px var(--experimental); transition: width 1.5s var(--ease); }
         .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
 
-        /* --- NEW: LABO LOCKED CARDS (RED AURA) --- */
-        .lab-locked-section { margin-top: 60px; padding-bottom: 50px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px; }
-        .lab-section-title { font-family: 'JetBrains Mono'; color: #444; letter-spacing: 2px; margin-bottom: 30px; font-size: 0.9rem; }
-        
-        .lab-card-red {
-            position: relative;
-            background: #050505;
-            border-radius: 30px;
-            overflow: hidden;
-            padding: 3px;
-            opacity: 0; transform: translateY(50px);
-            transition: all 0.6s ease;
+        /* --- BOT INTERFACE & ANIMATION --- */
+        #matrix-layer {
+            position: fixed; inset: 0; z-index: 8000; background: #000;
+            pointer-events: none; opacity: 0; transition: opacity 0.5s;
         }
-        .lab-grid.show .lab-card-red { opacity: 1; transform: translateY(0); }
+        #matrix-layer.active { opacity: 1; pointer-events: auto; }
+        canvas { position: absolute; inset: 0; display: block; }
         
-        /* Aura rouge qui tourne */
-        .lab-card-red::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: conic-gradient(transparent, transparent, transparent, var(--red));
-            animation: rotateAura 4s linear infinite;
-        }
-        @keyframes rotateAura { 100% { transform: rotate(360deg); } }
-
-        .lab-card-red-inner {
-            background: #0a0a0a; border-radius: 28px; height: 100%; width: 100%;
-            position: relative; z-index: 2; padding: 35px;
-            display: flex; flex-direction: column; justify-content: center;
-        }
-        
-        .locked-content { opacity: 0.4; filter: grayscale(1); transition: 0.3s; }
-        .locked-icon { font-size: 3rem; color: #333; margin-bottom: 15px; }
-
-        /* BOT INTERFACE */
         #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
-        .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
         .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
-        .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; transition: 0.3s; }
-        .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
+        .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; position: relative; }
         
-        .cmd-btn { background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; }
+        .cmd-btn { 
+            background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; 
+            color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; 
+            transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; 
+        }
         .cmd-btn.unlocked { cursor: pointer; pointer-events: auto; color: #aaa; border-color: var(--dim-green); }
         .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
         
+        /* Boutons Spéciaux */
+        .github-btn { margin-top: auto; border-color: #fff !important; color: #fff !important; text-align: center; justify-content: center; }
         .kill-btn { margin-top: 10px; border-color: var(--red) !important; color: var(--red) !important; text-align: center; justify-content: center; }
         .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
-        .github-btn { margin-top: auto; border-color: #fff !important; color: #fff !important; text-align: center; justify-content: center; margin-bottom: 10px; }
-        .github-btn:hover { background: #fff !important; color: #000 !important; }
-        
-        #terminal-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; transition: opacity 0.5s; }
-        #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
+
+        #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; height: 100%; }
         .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
         .term-link { display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
         .term-link:hover { background: var(--green); color: #000; }
-        
-        .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; flex-shrink: 0; }
-        .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
-        
-        #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
-        #git-confirm.active { display: flex; opacity: 1; }
-        .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; }
-        .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
-        .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 12px; z-index: -1; }
-        .cancel-btn { background: transparent; color: #888; border: 1px solid #333; padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
-        
-        .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
-        @keyframes warp { 0% { transform: scale(1); filter: blur(0); opacity: 1; } 40% { transform: scale(1.1); filter: blur(5px); opacity: 1; } 100% { transform: scale(0.1, 0.01); filter: blur(50px); opacity: 0; } }
-        #toast { position: fixed; bottom: 40px; right: 40px; z-index: 20000; background: #000; border: 1px solid var(--red); color: var(--red); padding: 20px 30px; border-radius: 10px; font-family: 'JetBrains Mono'; transform: translateX(200%); transition: 0.5s; display: flex; align-items: center; gap: 15px; }
-        #toast.visible { transform: translateX(0); }
-        .legal-content { max-width: 800px; margin: 0 auto; margin-top: 50px; }
-        .legal-card { background: var(--glass); padding: 40px; border-radius: 30px; border: 1px solid var(--border-site); margin-bottom: 30px; backdrop-filter: blur(10px); }
-        .legal-card h3 { font-size: 1.2rem; margin-bottom: 10px; color: #fff; margin-top: 20px; }
-        .legal-card p { color: #aaa; line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
-        .legal-card ul { margin-left: 20px; color: #aaa; margin-bottom: 15px; }
 
-        @media(max-width:900px){ h1{font-size:3.5rem;} .bot-grid{grid-template-columns:1fr; grid-template-rows: auto 1fr;} .matrix-ui{width:90%;} .scramble-text{font-size:2rem; padding:15px; min-width:auto;} }
+        /* Animation de sortie */
+        .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
+        @keyframes warp { 0% { transform: scale(1); opacity: 1; filter: blur(0); } 100% { transform: scale(0, 0.001); opacity: 0; filter: blur(20px); } }
     </style>
 </head>
 <body>
@@ -233,50 +150,35 @@
     </div>
     <div class="bg-layer blueprint-grid" id="labo-bg"></div>
 
+    <div id="matrix-layer"><canvas id="matrix-canvas"></canvas></div>
+
     <div id="loader"><i class="fas fa-fingerprint loader-icon"></i></div>
-    <div id="lab-loader">
-        <div class="lab-typewriter" id="lab-text"></div>
-        <div class="lab-load-bar-bg"><div class="lab-load-bar-fill" id="lab-main-bar"></div></div>
-    </div>
 
     <div id="wip-modal">
-        <div class="wip-box">
-            <i class="fas fa-hammer" style="font-size:3rem; color:var(--primary); margin-bottom:20px;"></i>
-            <h2>Projet en Cours</h2>
-            <p style="color:#aaa; margin:20px 0;">Le Hub Syntia est en Beta. Des fonctionnalités ou erreurs sur le site peuvent survenir .</p>
+        <div class="modal-box">
+            <h2>Accès Système</h2>
+            <p style="color:#aaa; margin:20px 0;">Chargement de l'interface Syntia V4...</p>
             <button class="btn-main" onclick="closeWip()">ENTRER</button>
         </div>
     </div>
 
     <div id="discord-modal">
-        <div class="discord-box">
-            <i class="fab fa-discord discord-icon"></i>
-            <h2>Rejoindre l'Élite ?</h2>
-            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
-            <div style="display:flex; gap:15px; justify-content:center; margin-top:30px;">
-                <button class="btn-ghost" onclick="closeDiscordModal()">ANNULER</button>
-                <button class="btn-main" onclick="confirmDiscord()">REJOINDRE</button>
+        <div class="modal-box">
+            <i class="fab fa-discord" style="font-size:4rem; color:#5865F2; margin-bottom:20px;"></i>
+            <h2>Rejoindre Syntia</h2>
+            <p style="color:#aaa; margin:20px 0;">Prêt à intégrer le serveur ?</p>
+            <div style="display:flex; gap:15px; justify-content:center;">
+                <button class="btn-main" onclick="confirmDiscord()">CONFIRMER</button>
+                <button class="btn-main" style="background:transparent; color:#fff; border:1px solid #333;" onclick="closeDiscordModal()">RETOUR</button>
             </div>
         </div>
     </div>
-
-    <div id="matrix-layer">
-        <canvas id="matrix-canvas"></canvas>
-        <div class="matrix-ui">
-            <div class="scramble-text" id="matrix-text"></div>
-            <div class="access-sub" id="matrix-sub">COMMAND TERMINAL ACCESS GRANTED</div>
-        </div>
-    </div>
-
-    <div id="toast"><i class="fas fa-ban"></i><div><strong>CONNECTION LOST</strong><div style="font-size:0.8rem; opacity:0.8;">Session closed.</div></div></div>
 
     <nav id="navbar">
         <div class="brand" onclick="switchView('home-view')">Syntia</div>
         <div class="nav-pills">
             <div class="nav-item active" onclick="switchView('home-view')">Hub</div>
             <div class="nav-item" onclick="switchView('labo-view')">Labo</div>
-            <div class="nav-item" onclick="switchView('privacy-view')">Privacy</div>
-            <div class="nav-item" onclick="switchView('cgu-view')">CGU</div>
         </div>
     </nav>
 
@@ -284,16 +186,18 @@
 
         <div id="home-view" class="view active">
             <div class="hero" style="height:100vh; display:flex; flex-direction:column; justify-content:center;">
-                <div style="font-weight: 800; color: var(--primary); margin-bottom: 20px;">V4.0 STABLE</div>
+                <div style="font-weight: 800; color: var(--primary); margin-bottom: 20px;">BIENVENUE</div>
                 <h1>Bonjour, <br>Bienvenue chez Syntia.</h1>
+                
                 <div class="glass-card" style="max-width:800px;">
-                    <h3 style="color:#fff; margin-bottom:15px;">La Fusion Business & Gaming</h3>
+                    <h3 style="color:#fff; margin-bottom:15px;">Écosystème Digital</h3>
                     <p style="color:#ccc; line-height:1.6; margin:0;">
                         Syntia est un serveur discord alliant business et jeu vidéo, c'est un serveur conviviale et agréable.
                     </p>
                 </div>
+
                 <div style="display:flex; gap:20px;">
-                    <button class="btn-main" onclick="openDiscordModal()"><i class="fab fa-discord"></i> Discord</button>
+                    <button class="btn-main" onclick="openDiscordModal()"><i class="fab fa-discord"></i> Rejoindre</button>
                     <button class="btn-main" style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);" onclick="enterBotMode()">
                         <i class="fas fa-terminal"></i> Terminal Bot
                     </button>
@@ -304,133 +208,73 @@
         <div id="labo-view" class="view">
             <div style="padding-top:100px;">
                 <h1>Syntia <span style="color:var(--experimental)">Lab.</span></h1>
-                <p style="color:#aaa; letter-spacing:2px; font-family:'JetBrains Mono'; margin-bottom:40px;">EXPERIMENTAL // DEVELOPMENT ROADMAP</p>
-
                 <div class="lab-grid" id="lab-cards-container">
+                    
                     <div class="lab-card">
-                        <span class="lab-status" style="color:var(--green); border-color:var(--green)">DEPLOYED v4.0</span>
-                        <h3 class="lab-title">Infinity Panel</h3>
-                        <p class="lab-desc">Architecture centrale du bot. Gestion des rôles, logs avancés et sécurité neuronale.</p>
-                        <div class="progress-meta"><span>COMPLETION</span><span>100%</span></div>
+                        <span class="lab-status" style="color:var(--green); border-color:var(--green)">COMPLÉTÉ</span>
+                        <h3>Infinity Panel V40</h3>
+                        <p style="color:#aaa; font-size:0.9rem; margin:10px 0;">Architecture centrale du bot terminée et stable.</p>
+                        <div class="progress-meta"><span>PROGRESSION</span><span>100%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="100%"></div></div>
                     </div>
+
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--green); border-color:var(--green)">RELEASES</span>
-                        <h3 class="lab-title">Serveur Discord</h3>
-                        <p class="lab-desc">Structure et configuration du serveur communautaire.</p>
-                        <div class="progress-meta"><span>COMPLETION</span><span>100%</span></div>
+                        <h3>Serveur Discord</h3>
+                        <p style="color:#aaa; font-size:0.9rem; margin:10px 0;">Structure du serveur finalisée et ouverte.</p>
+                        <div class="progress-meta"><span>PROGRESSION</span><span>100%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="100%"></div></div>
                     </div>
+
                     <div class="lab-card">
-                        <span class="lab-status" style="color:var(--primary); border-color:var(--primary)">BETA TEST</span>
-                        <h3 class="lab-title">Chat Bot</h3>
-                        <p class="lab-desc">IA conversationnelle basée sur Llama 3.1 presque prête.</p>
-                        <div class="progress-meta"><span>COMPLETION</span><span>80%</span></div>
+                        <span class="lab-status" style="color:var(--primary); border-color:var(--primary)">BETA</span>
+                        <h3>Chat Bot</h3>
+                        <p style="color:#aaa; font-size:0.9rem; margin:10px 0;">Module IA conversationnel fonctionnel.</p>
+                        <div class="progress-meta"><span>PROGRESSION</span><span>80%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="80%"></div></div>
                     </div>
+
                     <div class="lab-card">
                         <span class="lab-status" style="color:#ffae00; border-color:#ffae00">PRE-DEV</span>
-                        <h3 class="lab-title">Web Dashboard</h3>
-                        <p class="lab-desc">Interface de gestion web pour les paramètres du bot.</p>
-                        <div class="progress-meta"><span>COMPLETION</span><span>20%</span></div>
+                        <h3>Web Dashboard</h3>
+                        <p style="color:#aaa; font-size:0.9rem; margin:10px 0;">Interface web de gestion du bot.</p>
+                        <div class="progress-meta"><span>PROGRESSION</span><span>20%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="20%"></div></div>
                     </div>
+
                     <div class="lab-card">
                         <span class="lab-status" style="color:var(--experimental); border-color:var(--experimental)">RESEARCH</span>
-                        <h3 class="lab-title">Auto Convert Devise</h3>
-                        <p class="lab-desc">Module de conversion automatique temps réel.</p>
-                        <div class="progress-meta"><span>COMPLETION</span><span>10%</span></div>
+                        <h3>Auto Convert Devise</h3>
+                        <p style="color:#aaa; font-size:0.9rem; margin:10px 0;">Conversion automatique en temps réel.</p>
+                        <div class="progress-meta"><span>PROGRESSION</span><span>10%</span></div>
                         <div class="progress-track"><div class="progress-fill" data-width="10%"></div></div>
                     </div>
+
                 </div>
-
-                <div class="lab-locked-section">
-                    <div class="lab-section-title">RESTRICTED AREA // CLASSIFIED</div>
-                    <div class="lab-grid show" style="margin-top:20px;">
-                        
-                        <div class="lab-card-red">
-                            <div class="lab-card-red-inner">
-                                <div class="locked-content">
-                                    <span class="lab-status" style="color:#444; border-color:#444">LOCKED</span>
-                                    <h3 class="lab-title" style="color:#666;">Panel Modo</h3>
-                                    <p class="lab-desc" style="color:#333;">Outils de modération avancés pour le staff uniquement.</p>
-                                    <div style="font-size:0.7rem; color:#444; margin-top:10px;"><i class="fas fa-eye-slash"></i> NO ACCESS</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="lab-card-red">
-                            <div class="lab-card-red-inner" style="align-items:center; text-align:center;">
-                                <i class="fas fa-lock locked-icon"></i>
-                                <div style="color:#333; font-weight:800; letter-spacing:3px;">TOP SECRET</div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
             </div>
         </div>
 
         <div id="bot-view" class="view">
-            <div class="scanlines"></div>
-            <div class="bot-grid" id="bot-ui">
-                <div class="panel" id="sidebar-panel">
-                    <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
-                    <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
-                    <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
-                    <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
-                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()"><i class="fab fa-github"></i> GITHUB</button>
-                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()"><i class="fas fa-power-off"></i> POWER OFF</button>
-                </div>
-                <div class="panel" style="position:relative;">
-                    <div id="terminal-wrapper">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
-                            <span>SSH: root@syntia-core</span>
-                            <span id="boot-status" style="color:yellow">CONNECTING...</span>
-                        </div>
-                        <div id="terminal"></div>
-                        <div class="boot-bar-con" id="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
-                    </div>
-                    <div id="git-confirm">
-                        <i class="fab fa-github" style="font-size:4rem; color:#fff; margin-bottom:30px;"></i>
-                        <h2 style="margin-bottom:10px; color:#fff;">EXTERNAL LINK DETECTED</h2>
-                        <p style="color:#aaa; margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
-                        <button class="rainbow-btn" onclick="confirmGithub()">ACCÉDER AU REPO</button>
-                        <button class="cancel-btn" onclick="cancelGithub()">ANNULER</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            <div class="bot-grid">
+                <div class="panel">
+                    <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">SYSTEM CONTROL</div>
+                    
+                    <button class="cmd-btn unlocked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
+                    <button class="cmd-btn unlocked" onclick="exec('/modules')"><i class="fas fa-cubes"></i> MODULES</button>
+                    <button class="cmd-btn unlocked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
+                    
+                    <button class="cmd-btn unlocked github-btn" onclick="window.open('https://github.com/hugobrt/syntia.ai', '_blank')">
+                        <i class="fab fa-github"></i> GITHUB
+                    </button>
 
-        <div id="privacy-view" class="view">
-            <div class="legal-content">
-                <h1>Politique de Confidentialité</h1>
-                <div class="legal-card">
-                    <p><b>Dernière mise à jour :</b> 03 Février 2026</p>
-                    <p>Chez Syntia, la protection de vos données est primordiale. Voici comment nous traitons vos informations :</p>
-                    <h3>1. Données Techniques (IDs)</h3>
-                    <p>Pour assurer le fonctionnement du Bot, nous stockons uniquement : Server ID, Channel IDs, Admin User IDs.</p>
-                    <h3>2. Clés API & Sécurité</h3>
-                    <p>Les clés API (Groq, Llama) sont stockées de manière chiffrée dans les variables d'environnement (Render Cloud). Aucune clé n'est exposée.</p>
-                    <h3>3. Non-Rétention</h3>
-                    <p>Syntia n'enregistre aucune conversation. Tout est traité en RAM.</p>
+                    <button class="cmd-btn unlocked kill-btn" onclick="exitBotMode()">
+                        <i class="fas fa-power-off"></i> POWER OFF
+                    </button>
                 </div>
-                <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
-            </div>
-        </div>
-        <div id="cgu-view" class="view">
-            <div class="legal-content">
-                <h1>Conditions Générales</h1>
-                <div class="legal-card">
-                    <h3>1. Acceptation</h3>
-                    <p>En utilisant Syntia, vous acceptez les règles de Discord et ces CGU.</p>
-                    <h3>2. Responsabilité</h3>
-                    <p>L'utilisateur est responsable de l'usage des commandes de modération. Syntia décline toute responsabilité en cas d'abus.</p>
-                    <h3>3. Avertissement IA</h3>
-                    <p>Les conseils financiers générés par l'IA ne sont pas garantis. Vous êtes responsable de vos investissements.</p>
+
+                <div class="panel">
+                    <div id="terminal"></div>
                 </div>
-                <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
             </div>
         </div>
 
@@ -443,201 +287,107 @@
             setTimeout(() => {
                 document.getElementById('loader').style.transform = 'translateY(-100%)';
                 setTimeout(() => document.getElementById('wip-modal').classList.add('visible'), 500);
-            }, 800);
+            }, 1000);
         };
 
-        function closeWip() {
-            const m = document.getElementById('wip-modal');
-            m.style.opacity = '0';
-            setTimeout(() => m.style.display = 'none', 500);
-        }
-
+        function closeWip() { document.getElementById('wip-modal').style.display = 'none'; }
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
-        function confirmDiscord() { window.open('https://discord.gg/muJTPWcpjC', '_blank'); closeDiscordModal(); }
+        function confirmDiscord() { window.open('TON_LIEN_DISCORD', '_blank'); closeDiscordModal(); }
 
         function switchView(id) {
             document.querySelectorAll('.view').forEach(el => { el.classList.remove('active'); el.classList.remove('warp-out'); });
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            setTimeout(() => document.getElementById(id).classList.add('active'), 50);
             
-            if(id.includes('home')) document.querySelector('.nav-item:nth-child(1)').classList.add('active');
-            if(id.includes('labo')) document.querySelector('.nav-item:nth-child(2)').classList.add('active');
-            if(id.includes('privacy')) document.querySelector('.nav-item:nth-child(3)').classList.add('active');
-            if(id.includes('cgu')) document.querySelector('.nav-item:nth-child(4)').classList.add('active');
-
-            const homeBg = document.getElementById('home-bg');
-            const laboBg = document.getElementById('labo-bg');
-            const labLoader = document.getElementById('lab-loader');
-            const labTitle = document.getElementById('lab-text');
-            const labLoadBar = document.getElementById('lab-main-bar');
-            
-            if (id === 'labo-view') {
-                labLoader.classList.add('active');
-                labTitle.innerText = "";
-                labLoadBar.style.width = "0%";
-                document.getElementById('lab-cards-container').classList.remove('show');
-
-                const text = "SYNTIA LAB";
-                let i = 0;
-                const typeInt = setInterval(() => {
-                    labTitle.innerText += text.charAt(i);
-                    i++;
-                    if(i >= text.length) {
-                        clearInterval(typeInt);
-                        setTimeout(() => {
-                            labLoadBar.style.width = "100%";
-                            setTimeout(() => {
-                                labLoader.classList.remove('active');
-                                homeBg.classList.remove('active');
-                                laboBg.classList.add('active');
-                                document.getElementById('lab-cards-container').classList.add('show');
-                                // Trigger lock cards reveal too
-                                document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '1');
-                                document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(0)');
-                                
-                                setTimeout(() => {
-                                    document.querySelectorAll('.progress-fill').forEach(bar => {
-                                        bar.style.width = bar.getAttribute('data-width');
-                                    });
-                                }, 600);
-                            }, 600);
-                        }, 200);
-                    }
-                }, 70);
+            if(id === 'home-view'){
+                document.querySelector('.nav-item:nth-child(1)').classList.add('active');
+                document.getElementById('home-bg').classList.add('active');
+                document.getElementById('labo-bg').classList.remove('active');
             } else {
-                document.querySelectorAll('.progress-fill').forEach(bar => bar.style.width = '0');
-                document.getElementById('lab-cards-container').classList.remove('show');
-                // Hide locked cards
-                document.querySelectorAll('.lab-card-red').forEach(c => c.style.opacity = '0');
-                document.querySelectorAll('.lab-card-red').forEach(c => c.style.transform = 'translateY(50px)');
-                
-                if (id === 'bot-view') {
-                    homeBg.classList.remove('active');
-                    laboBg.classList.remove('active');
-                } else {
-                    homeBg.classList.add('active');
-                    laboBg.classList.remove('active');
-                }
+                document.querySelector('.nav-item:nth-child(2)').classList.add('active');
+                document.getElementById('home-bg').classList.remove('active');
+                document.getElementById('labo-bg').classList.add('active');
+                setTimeout(() => {
+                    document.getElementById('lab-cards-container').classList.add('show');
+                    document.querySelectorAll('.progress-fill').forEach(bar => {
+                        bar.style.width = bar.getAttribute('data-width');
+                    });
+                }, 300);
             }
+            setTimeout(() => document.getElementById(id).classList.add('active'), 50);
         }
 
+        // --- BOT LOGIC ---
+
         function enterBotMode() {
-            const mat = document.getElementById('matrix-layer');
-            const txt = document.getElementById('matrix-text');
-            const sub = document.getElementById('matrix-sub');
-            mat.classList.add('active');
+            document.getElementById('matrix-layer').classList.add('active');
             initMatrix();
-            scrambleText("SYNCHRO SYNTIA", txt);
-            setTimeout(() => scrambleText("SYNTIA BOT", txt), 1500);
-            setTimeout(() => sub.classList.add('visible'), 2500);
+            
             setTimeout(() => {
                 document.getElementById('navbar').classList.add('hidden');
-                document.getElementById('home-bg').style.opacity = '0';
                 switchView('bot-view');
-            }, 3000);
-            setTimeout(() => {
-                mat.classList.remove('active');
-                sub.classList.remove('visible');
-                txt.innerHTML = "";
+                document.getElementById('matrix-layer').classList.remove('active');
                 runBoot();
-            }, 4000);
+            }, 2000);
         }
 
         function runBoot() {
             const term = document.getElementById('terminal');
-            const bar = document.getElementById('boot-fill');
-            const status = document.getElementById('boot-status');
-            term.innerHTML = "";
-            botReady = false;
-            bar.style.width = '0%';
-            document.getElementById('boot-bar').style.opacity = '1';
-            status.innerText = "CONNECTING...";
-            status.style.color = "yellow";
-            document.querySelectorAll('.cmd-btn').forEach(b => { b.classList.remove('unlocked'); b.style.pointerEvents = "none"; });
-
-            const msgs = [
-                {t:"Initializing secure kernel...", d:200},
-                {t:"Mounting encrypted drives...", d:800},
-                {t:"Loading modules...", d:1500},
-                {t:"Compiling assets...", d:2500},
-                {t:"Bypassing Firewall (Port 443)...", d:3500},
-                {t:"Connecting to Render Node...", d:4500},
-                {t:"Decrypting Llama 3.1 Neural Weights...", d:5200},
-                {t:"ACCESS GRANTED. SYSTEM ONLINE.", d:5800, c:"#00ff41"}
-            ];
-            let p = 0;
-            const i = setInterval(() => { p += 1; bar.style.width = p+"%"; if(p>=100) clearInterval(i); }, 60);
-            msgs.forEach(m => setTimeout(() => {
-                term.innerHTML += `<div class="log-line"><span class="sys-prefix">SYS></span> <span style="color:${m.c||'#ccc'}">${m.t}</span></div>`;
-                term.scrollTop = term.scrollHeight;
-            }, m.d));
-            setTimeout(() => {
-                botReady = true;
-                status.innerText = "ONLINE"; status.style.color = "#00ff41";
-                document.getElementById('boot-bar').style.opacity = '0';
-                document.querySelectorAll('.cmd-btn').forEach(b => { b.classList.add('unlocked'); b.style.pointerEvents = "auto"; });
-                term.innerHTML += `<div class="log-line"><span class="sys-prefix">SYS></span> Waiting for user command...</div>`;
-                term.scrollTop = term.scrollHeight;
-            }, 6000);
+            term.innerHTML = `<div class="log-line"><span style="color:var(--green)">[OK] Kernel Loaded</span></div>`;
+            term.innerHTML += `<div class="log-line">Waiting for input...</div>`;
+            botReady = true;
         }
 
         function exec(cmd) {
             if(!botReady) return;
             const term = document.getElementById('terminal');
-            term.innerHTML += `<div class="log-line"><span style="color:#aaa">USR></span> ${cmd}</div>`;
-            term.scrollTop = term.scrollHeight;
+            term.innerHTML += `<div class="log-line" style="margin-top:10px;"><span style="color:#aaa">USR></span> ${cmd}</div>`;
+            
             setTimeout(() => {
                 if(cmd === '/modules') {
-                    term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Select module:</div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('func')">[> FONCTIONNEMENT BOT]</span></div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('panel')">[> INFINITY PANEL V40]</span></div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('chat')">[> SYNTIA CHAT-BOT]</span></div>`;
-                } 
-                else if(cmd === '/identity') {
-                    term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Je suis Syntia. Une IA basée sur Llama 3.1, spécialisée dans l'analyse business et la gestion de communautés Discord.</div>`;
-                }
-                else if(cmd === '/status') {
-                    term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> <span style="color:#00ff41">Last commit: OPERATIONAL. All systems GO.</span></div>`;
+                    // Les 3 interactions demandées
+                    term.innerHTML += `<div class="log-line"><span style="color:var(--green)">BOT></span> Modules disponibles :</div>`;
+                    
+                    // 1. Fonctionnement
+                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleInfo('func')">[> FONCTIONNEMENT DU BOT]</span></div>`;
+                    // 2. Panel
+                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleInfo('panel')">[> INFINITY PANEL]</span></div>`;
+                    // 3. Chat
+                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleInfo('chat')">[> CHAT BOT AI]</span></div>`;
+                
+                } else if(cmd === '/identity') {
+                    term.innerHTML += `<div class="log-line">Syntia V4. Système Business & Gaming.</div>`;
+                } else if(cmd === '/status') {
+                    term.innerHTML += `<div class="log-line" style="color:var(--green)">SYSTEM ONLINE. ALL GREEN.</div>`;
                 }
                 term.scrollTop = term.scrollHeight;
             }, 300);
         }
 
-        function showModuleDetail(type) {
+        function showModuleInfo(type) {
             const term = document.getElementById('terminal');
             let txt = "";
-            if(type === 'func') txt = "Pour connecter son bot à son serveur discord : ajoutez les clés API directement via votre hébergeur en appelant les fonctions associées dans le code du bot.";
-            if(type === 'panel') txt = "INFINITY PANEL V40: Dashboard administratif complet. Logs, Anti-Raid, Gestion des rôles et Analytics.";
-            if(type === 'chat') txt = "SYNTIA CHAT-BOT: Agent conversationnel Llama 3.1. Répond aux questions business, crypto et support technique.";
-            term.innerHTML += `<div class="log-line"><span class="sys-prefix" style="color:#00cec9">INFO></span> ${txt}</div>`;
+
+            if(type === 'func') {
+                // Le texte spécifique demandé
+                txt = "Pour connecter son bot à son serveur discord : ajoutez les clés API directement via votre hébergeur en appelant les fonctions associées dans le code du bot.";
+            } else if(type === 'panel') {
+                txt = "Infinity Panel V40 : Gestion complète (Membres, Logs, Anti-raid). 100% Fonctionnel.";
+            } else if(type === 'chat') {
+                txt = "Chat Bot AI : Module de conversation intelligent (80% terminé).";
+            }
+
+            term.innerHTML += `<div class="log-line" style="color:var(--secondary); border-left: 2px solid var(--secondary); padding-left:10px; margin: 5px 0;">${txt}</div>`;
             term.scrollTop = term.scrollHeight;
         }
 
-        function triggerGithubSequence() {
-            if(!botReady) return;
-            document.getElementById('sidebar-panel').classList.add('panel-disabled');
-            const termWrap = document.getElementById('terminal-wrapper');
-            termWrap.style.opacity = '0';
-            setTimeout(() => { termWrap.style.display = 'none'; document.getElementById('git-confirm').classList.add('active'); }, 500);
-        }
-        function confirmGithub() { window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank'); cancelGithub(); }
-        function cancelGithub() {
-            document.getElementById('git-confirm').classList.remove('active');
-            const termWrap = document.getElementById('terminal-wrapper');
-            setTimeout(() => { termWrap.style.display = 'flex'; document.getElementById('sidebar-panel').classList.remove('panel-disabled'); requestAnimationFrame(() => termWrap.style.opacity = '1'); }, 500);
-        }
-
         function exitBotMode() {
-            if(!botReady) return;
-            document.getElementById('toast').classList.add('visible');
             document.getElementById('bot-view').classList.add('warp-out');
             setTimeout(() => {
-                document.getElementById('toast').classList.remove('visible');
                 document.getElementById('navbar').classList.remove('hidden');
-                document.getElementById('home-bg').style.opacity = '1';
                 switchView('home-view');
-            }, 1200);
+                document.getElementById('bot-view').classList.remove('warp-out');
+            }, 1000);
         }
 
         function initMatrix() {
@@ -655,15 +405,7 @@
                 });
             }
             const i = setInterval(draw, 40);
-            setTimeout(() => clearInterval(i), 4500);
-        }
-        function scrambleText(txt, el) {
-            const chars = "ABC0123456789";
-            let i = 0;
-            const int = setInterval(() => {
-                el.innerText = txt.split("").map((l,x) => x < i ? l : chars[Math.floor(Math.random()*chars.length)]).join("");
-                if(i >= txt.length) clearInterval(int); i += 1/2;
-            }, 40);
+            setTimeout(() => clearInterval(i), 2000);
         }
     </script>
 </body>
