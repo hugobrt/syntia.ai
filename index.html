@@ -14,15 +14,15 @@
             --text-site: #ffffff;
             --primary: #6c5ce7;
             --secondary: #00cec9;
-            --experimental: #ff0055; /* Couleur Labo */
+            --experimental: #ff0055;
             --glass: rgba(255, 255, 255, 0.03);
             --glass-strong: rgba(20, 20, 20, 0.9);
             --border-site: rgba(255, 255, 255, 0.1);
             
-            /* HACKER THEME */
+            /* HACKER THEME (Image Reference) */
             --bg-bot: #000000;
+            --bot-border: #333;
             --green: #00ff41;
-            --dim-green: #004411;
             --red: #ff3333;
             
             --radius-oneui: 35px;
@@ -36,20 +36,16 @@
             height: 100vh; width: 100vw;
         }
 
-        /* --- BACKGROUNDS MANAGER --- */
-        .bg-layer {
-            position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none;
-        }
+        /* --- BACKGROUNDS --- */
+        .bg-layer { position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none; }
         .bg-layer.active { opacity: 1; }
 
-        /* HOME BG */
         .ambient-light { background: radial-gradient(circle at center, #111 0%, #000 100%); }
         .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5; animation: float 15s infinite alternate; }
         .b1 { width: 60vw; height: 60vw; background: var(--primary); top: -20%; left: -10%; }
         .b2 { width: 50vw; height: 50vw; background: #00cec9; bottom: -20%; right: -10%; animation-delay: -5s; }
         @keyframes float { from { transform: translate(0,0); } to { transform: translate(30px, 30px); } }
 
-        /* LABO BG (Blueprint Grid) */
         .blueprint-grid {
             background-color: #050505;
             background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
@@ -57,16 +53,13 @@
         }
         @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 40px; } }
 
-        /* --- LOADERS --- */
-        /* Main Loader */
+        /* --- LOADER --- */
         #loader {
             position: fixed; inset: 0; z-index: 10000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: transform 0.8s var(--ease);
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
-        
-        /* Labo Specific Loader */
         #lab-loader {
             position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.95);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -74,7 +67,7 @@
         }
         #lab-loader.active { opacity: 1; pointer-events: auto; }
         .lab-spinner { width: 50px; height: 50px; border: 3px solid var(--experimental); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        
+
         /* --- POPUPS --- */
         #wip-modal, #discord-modal {
             position: fixed; inset: 0; z-index: 9999;
@@ -83,7 +76,6 @@
             opacity: 0; pointer-events: none; transition: opacity 0.5s;
         }
         #wip-modal.visible, #discord-modal.active { opacity: 1; pointer-events: auto; }
-        
         .wip-box, .discord-box {
             background: #111; border: 1px solid var(--border-site); padding: 40px;
             border-radius: 30px; text-align: center; max-width: 500px;
@@ -99,7 +91,6 @@
         }
         #matrix-layer.active { opacity: 1; pointer-events: auto; }
         canvas { position: absolute; inset: 0; display: block; }
-        
         .matrix-ui { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             z-index: 10; text-align: center; font-family: 'JetBrains Mono'; width: 100%;
@@ -107,121 +98,205 @@
         .scramble-text {
             font-size: 3.5rem; font-weight: 800; color: var(--green);
             text-shadow: 0 0 20px var(--green); background: rgba(0,0,0,0.8);
-            padding: 20px 40px; border: 1px solid var(--green); border-radius: 15px;
-            display: inline-block;
+            padding: 20px 40px; border: 1px solid var(--green); border-radius: 15px; display: inline-block;
         }
-        .access-sub {
-            margin-top: 20px; color: var(--green); letter-spacing: 3px; font-size: 0.9rem;
-            opacity: 0; transform: translateY(10px); transition: 0.5s; font-weight: bold;
-        }
+        .access-sub { margin-top: 20px; color: var(--green); letter-spacing: 3px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: 0.5s; font-weight: bold; }
         .access-sub.visible { opacity: 1; transform: translateY(0); }
 
         /* --- NAVIGATION --- */
-        nav {
-            position: fixed; top: 0; width: 100%; padding: 30px 60px;
-            display: flex; justify-content: space-between; align-items: center; z-index: 1000;
-            transition: transform 0.5s var(--ease);
-        }
+        nav { position: fixed; top: 0; width: 100%; padding: 30px 60px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; transition: transform 0.5s var(--ease); }
         nav.hidden { transform: translateY(-150%); }
-
         .brand { font-size: 1.5rem; font-weight: 800; cursor: pointer; }
-        .nav-pills {
-            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px;
-            display: flex; gap: 5px; border: 1px solid var(--border-site); backdrop-filter: blur(10px);
-        }
-        .nav-item {
-            padding: 10px 25px; border-radius: 40px; cursor: pointer; font-size: 0.9rem;
-            color: #aaa; transition: 0.3s;
-        }
+        .nav-pills { background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px; display: flex; gap: 5px; border: 1px solid var(--border-site); backdrop-filter: blur(10px); }
+        .nav-item { padding: 10px 25px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; color: #aaa; transition: 0.3s; }
         .nav-item.active { background: #fff; color: #000; font-weight: 800; }
 
         /* --- VIEWS --- */
         .view-container { position: relative; width: 100vw; height: 100vh; }
-        .view {
-            position: absolute; inset: 0; padding: 120px 10%; display: flex; flex-direction: column;
-            opacity: 0; pointer-events: none; transform: scale(0.95); transition: 0.8s var(--ease);
-            overflow-y: auto; overflow-x: hidden;
-        }
+        .view { position: absolute; inset: 0; padding: 120px 10%; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(0.95); transition: 0.8s var(--ease); overflow-y: auto; overflow-x: hidden; }
         .view.active { opacity: 1; pointer-events: auto; transform: scale(1); }
 
         /* HOME */
         h1 { font-size: 5rem; line-height: 1; margin-bottom: 25px; }
-        .glass-card {
-            background: var(--glass); border: 1px solid var(--border-site); padding: 30px;
-            border-radius: 30px; backdrop-filter: blur(10px); width: fit-content; margin-bottom: 20px;
-        }
-        .btn-main {
-            padding: 18px 45px; background: #fff; color: #000; border-radius: 50px;
-            font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px;
-            transition: 0.3s; cursor: pointer; border: none; font-size: 1rem;
-        }
+        .glass-card { background: var(--glass); border: 1px solid var(--border-site); padding: 30px; border-radius: 30px; backdrop-filter: blur(10px); width: fit-content; margin-bottom: 20px; }
+        .btn-main { padding: 18px 45px; background: #fff; color: #000; border-radius: 50px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; border: none; font-size: 1rem; }
         .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.3); }
-        .btn-ghost {
-            padding: 15px 30px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 50px;
-            font-weight: 700; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.3s;
-        }
+        .btn-ghost { padding: 15px 30px; background: rgba(255,255,255,0.1); color: #fff; border-radius: 50px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.3s; }
         .btn-ghost:hover { background: #fff; color: #000; }
 
-        /* LABO STYLES (NEW) */
+        /* LABO */
         .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 40px; padding-bottom: 50px; }
-        .lab-card {
-            background: rgba(255,255,255,0.03); border: 1px solid var(--border-site);
-            padding: 35px; border-radius: 30px; position: relative; overflow: hidden;
-            backdrop-filter: blur(20px); transition: 0.4s; opacity: 0; transform: translateY(30px);
-        }
-        
-        /* Cascade Animation triggers when view is active */
+        .lab-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-site); padding: 35px; border-radius: 30px; position: relative; overflow: hidden; backdrop-filter: blur(20px); transition: 0.4s; opacity: 0; transform: translateY(30px); }
         .view.active .lab-card { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        .view.active .lab-card:nth-child(1) { animation-delay: 0.1s; }
-        .view.active .lab-card:nth-child(2) { animation-delay: 0.2s; }
-        .view.active .lab-card:nth-child(3) { animation-delay: 0.3s; }
-        .view.active .lab-card:nth-child(4) { animation-delay: 0.4s; }
-
+        .view.active .lab-card:nth-child(1) { animation-delay: 0.1s; } .view.active .lab-card:nth-child(2) { animation-delay: 0.2s; } .view.active .lab-card:nth-child(3) { animation-delay: 0.3s; } .view.active .lab-card:nth-child(4) { animation-delay: 0.4s; }
         .lab-card:hover { transform: translateY(-8px); border-color: var(--experimental); background: rgba(255,255,255,0.06); }
         .lab-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; padding: 5px 10px; border-radius: 10px; border: 1px solid currentColor; }
-        .lab-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 10px; color: #fff; }
-        .lab-desc { color: #888; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; }
-
-        /* RAINBOW BAR */
         .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
-        .progress-rainbow {
-            height: 100%; width: 0; border-radius: 10px;
-            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000);
-            background-size: 200% 100%; animation: rainbowMove 2s linear infinite;
-            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-            box-shadow: 0 0 15px rgba(255,255,255,0.4);
-        }
+        .progress-rainbow { height: 100%; width: 0; border-radius: 10px; background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); background-size: 200% 100%; animation: rainbowMove 2s linear infinite; transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
         .progress-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-family: 'JetBrains Mono'; font-size: 0.75rem; color: #aaa; }
 
         @keyframes rainbowMove { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* BOT INTERFACE */
-        #bot-view { background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; }
-        .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
-        .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
-        .panel { background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; transition: 0.3s; }
-        .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
-        .cmd-btn { background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; cursor: not-allowed; pointer-events: none; }
-        .cmd-btn.unlocked { cursor: pointer; pointer-events: auto; color: #aaa; border-color: var(--dim-green); }
-        .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
-        .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
-        .github-btn:hover { background: #fff !important; color: #000 !important; }
-        #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
-        .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
-        .term-link { display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
-        .term-link:hover { background: var(--green); color: #000; }
-        .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; }
-        .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
-        #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
+        /* =========================================
+           BOT INTERFACE (RESTORED FROM IMAGE)
+           ========================================= */
+        #bot-view { 
+            background: #000; 
+            font-family: 'JetBrains Mono', monospace; 
+            padding: 40px; 
+            color: var(--green); 
+            overflow: hidden; 
+        }
+        
+        /* Grid Layout */
+        .bot-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            height: 100%;
+            position: relative;
+            z-index: 20;
+        }
+
+        /* Sidebar Styling */
+        .bot-sidebar {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #111; /* Separation line optional */
+            padding-right: 20px;
+        }
+
+        .sidebar-header {
+            font-size: 0.7rem;
+            color: #666;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* The specific buttons from the image */
+        .bot-btn {
+            background: transparent;
+            border: 1px solid #333;
+            color: #aaa;
+            padding: 12px 15px;
+            border-radius: 12px;
+            text-align: left;
+            margin-bottom: 10px;
+            cursor: not-allowed; /* Locked initially */
+            font-family: 'JetBrains Mono';
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Unlocked State */
+        .bot-btn.unlocked { cursor: pointer; }
+        .bot-btn.unlocked:hover {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        /* Github Button (Centered style) */
+        .github-btn {
+            margin-top: 30px;
+            justify-content: center;
+            border-color: #fff;
+            color: #fff;
+        }
+        .github-btn.unlocked:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Signal Lost (Red, Bottom) */
+        .kill-btn {
+            margin-top: auto;
+            border-color: var(--red);
+            color: var(--red);
+            justify-content: center;
+        }
+        .kill-btn.unlocked:hover {
+            background: var(--red);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.3);
+        }
+
+        /* Terminal Panel */
+        .bot-terminal {
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #333; /* Visual separation */
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        #terminal-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .log-line { margin-bottom: 5px; opacity: 0; animation: fadeIn 0.1s forwards; }
+        @keyframes fadeIn { to { opacity: 1; } }
+        .sys-prefix { color: var(--green); margin-right: 10px; font-weight: bold; }
+
+        /* Loading Bar (Boot) */
+        .boot-bar-con {
+            width: 100%; height: 2px; background: #111; margin-top: 10px;
+        }
+        .boot-bar-fill {
+            width: 0%; height: 100%; background: var(--green); 
+            box-shadow: 0 0 10px var(--green); transition: width 0.1s linear;
+        }
+
+        /* Github Confirm Overlay inside Terminal */
+        #git-confirm {
+            display: none; height: 100%; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            opacity: 0; transition: opacity 0.5s;
+        }
         #git-confirm.active { display: flex; opacity: 1; }
-        .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; }
-        .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
-        .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 12px; z-index: -1; }
+
+        .rainbow-btn {
+            position: relative; padding: 15px 40px; background: #000; color: #fff;
+            font-family: 'JetBrains Mono'; font-weight: bold; border: none; 
+            border-radius: 8px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 15px;
+        }
+        .rainbow-btn::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000);
+            animation: rotateAura 3s linear infinite; z-index: -2;
+        }
+        .rainbow-btn::after {
+            content: ''; position: absolute; inset: 2px; background: #000; border-radius: 6px; z-index: -1;
+        }
         @keyframes rotateAura { 100% { transform: rotate(360deg); } }
-        .cancel-btn { background: transparent; color: #888; border: 1px solid #333; padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
-        .cancel-btn:hover { border-color: #fff; color: #fff; }
+
+        .cancel-btn {
+            background: transparent; color: #666; border: 1px solid #333;
+            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: 'JetBrains Mono';
+        }
+        .cancel-btn:hover { color: #fff; border-color: #fff; }
+
+        /* Sidebar Disabled State */
+        .sidebar-disabled { opacity: 0.3; pointer-events: none; }
 
         /* UTILS */
         .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
@@ -234,7 +309,7 @@
         .legal-card p { color: #aaa; line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
         .legal-card ul { margin-left: 20px; color: #aaa; margin-bottom: 15px; }
 
-        @media(max-width:900px){ h1{font-size:3.5rem;} .bot-grid{grid-template-columns:1fr; grid-template-rows: auto 1fr;} .matrix-ui{width:90%;} .scramble-text{font-size:2rem; padding:15px; min-width:auto;} }
+        @media(max-width:900px){ h1{font-size:3.5rem;} .bot-container{grid-template-columns:1fr; grid-template-rows: auto 1fr;} .matrix-ui{width:90%;} .scramble-text{font-size:2rem; padding:15px; min-width:auto;} }
     </style>
 </head>
 <body>
@@ -266,7 +341,7 @@
         <div class="discord-box">
             <i class="fab fa-discord discord-icon"></i>
             <h2>Rejoindre l'Élite ?</h2>
-            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
+            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia.</p>
             <div style="display:flex; gap:15px; justify-content:center; margin-top:30px;">
                 <button class="btn-ghost" onclick="closeDiscordModal()">ANNULER</button>
                 <button class="btn-main" onclick="confirmDiscord()">REJOINDRE</button>
@@ -361,32 +436,48 @@
 
         <div id="bot-view" class="view">
             <div class="scanlines"></div>
-            <div class="bot-grid" id="bot-ui">
-                <div class="panel" id="sidebar-panel">
-                    <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
-                    <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
-                    <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
-                    <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
-                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()"><i class="fab fa-github"></i> GITHUB</button>
-                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()"><i class="fas fa-power-off"></i> SIGNAL LOST</button>
+            <div class="bot-container">
+                <div class="bot-sidebar" id="sidebar-panel">
+                    <div class="sidebar-header">CONTROL PANEL</div>
+                    
+                    <button class="bot-btn cmd-btn locked" onclick="exec('/identity')">
+                        <i class="fas fa-fingerprint"></i> IDENTITÉ
+                    </button>
+                    <button class="bot-btn cmd-btn locked" onclick="exec('/modules')">
+                        <i class="fas fa-cubes"></i> MODULES
+                    </button>
+                    <button class="bot-btn cmd-btn locked" onclick="exec('/status')">
+                        <i class="fas fa-chart-bar"></i> STATUS
+                    </button>
+                    
+                    <button class="bot-btn github-btn locked" onclick="triggerGithubSequence()">
+                        <i class="fab fa-github"></i> GITHUB
+                    </button>
+
+                    <button class="bot-btn kill-btn locked" onclick="exitBotMode()">
+                        <i class="fas fa-power-off"></i> SIGNAL LOST
+                    </button>
                 </div>
 
-                <div class="panel" style="position:relative;">
-                    <div id="terminal-wrapper">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
+                <div class="bot-terminal">
+                    <div id="terminal-wrapper" style="display:flex; flex-direction:column; height:100%;">
+                        <div class="terminal-header">
                             <span>SSH: root@syntia-core</span>
-                            <span id="boot-status" style="color:yellow">CONNECTING...</span>
+                            <span id="boot-status" style="color:yellow">BOOTING...</span>
                         </div>
-                        <div id="terminal"></div>
+                        
+                        <div id="terminal-content"></div>
+                        
                         <div class="boot-bar-con" id="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
                     </div>
 
                     <div id="git-confirm">
-                        <i class="fab fa-github" style="font-size:4rem; color:#fff; margin-bottom:30px;"></i>
-                        <h2 style="margin-bottom:10px; color:#fff;">EXTERNAL LINK DETECTED</h2>
-                        <p style="color:#aaa; margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
-                        <button class="rainbow-btn" onclick="confirmGithub()">ACCÉDER AU REPO</button>
-                        <button class="cancel-btn" onclick="cancelGithub()">ANNULER</button>
+                        <i class="fab fa-github" style="font-size:3rem; color:#fff; margin-bottom:20px;"></i>
+                        <h3 style="color:#fff; margin-bottom:10px;">EXTERNAL LINK</h3>
+                        <p style="color:#aaa; font-size:0.8rem; margin-bottom:30px;">Accessing source code repository.</p>
+                        
+                        <button class="rainbow-btn" onclick="confirmGithub()">ACCESS REPO</button>
+                        <button class="cancel-btn" onclick="cancelGithub()">CANCEL</button>
                     </div>
                 </div>
             </div>
@@ -399,30 +490,25 @@
                     <p><b>Dernière mise à jour :</b> 03 Février 2026</p>
                     <p>Chez Syntia, la protection de vos données est primordiale. Voici comment nous traitons vos informations :</p>
                     <h3>1. Données Techniques (IDs)</h3>
-                    <p>Pour assurer le fonctionnement du Bot (modération, logs, gestion de salon), nous stockons uniquement les identifiants techniques nécessaires :</p>
-                    <ul>
-                        <li><b>Server ID (Guild ID) :</b> Pour identifier votre communauté.</li>
-                        <li><b>Channel IDs :</b> Pour savoir où envoyer les messages.</li>
-                        <li><b>Admin User IDs :</b> Pour vérifier les permissions d'accès au panel.</li>
-                    </ul>
+                    <p>Pour assurer le fonctionnement du Bot, nous stockons uniquement : Server ID, Channel IDs, Admin User IDs.</p>
                     <h3>2. Clés API & Sécurité</h3>
-                    <p>Les clés API utilisées pour connecter le bot à l'intelligence artificielle (Groq, Llama) et aux services externes ne sont <b>jamais</b> stockées dans le code source public ni accessibles côté client. Elles sont sécurisées via les variables d'environnement de notre hébergeur (Render Cloud), garantissant une étanchéité totale.</p>
-                    <h3>3. Non-Rétention des Messages</h3>
-                    <p>Syntia n'enregistre aucune conversation. Les messages envoyés à l'IA sont traités en mémoire vive (RAM) le temps de générer la réponse, puis sont immédiatement détruits.</p>
+                    <p>Les clés API (Groq, Llama) sont stockées de manière chiffrée dans les variables d'environnement (Render Cloud). Aucune clé n'est exposée.</p>
+                    <h3>3. Non-Rétention</h3>
+                    <p>Syntia n'enregistre aucune conversation. Tout est traité en RAM.</p>
                 </div>
                 <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
             </div>
         </div>
         <div id="cgu-view" class="view">
             <div class="legal-content">
-                <h1>Conditions Générales d'Utilisation</h1>
+                <h1>Conditions Générales</h1>
                 <div class="legal-card">
                     <h3>1. Acceptation</h3>
-                    <p>En invitant le bot Syntia ou en rejoignant notre serveur Discord, vous acceptez pleinement les présentes conditions ainsi que les Conditions d'Utilisation de Discord.</p>
-                    <h3>2. Usage Responsable</h3>
-                    <p>Le module d'administration (Panel Infinity) donne des pouvoirs de modération étendus. L'utilisateur est seul responsable des commandes exécutées (ban, kick, clear). Syntia décline toute responsabilité en cas de mauvaise configuration ou d'abus par vos administrateurs.</p>
+                    <p>En utilisant Syntia, vous acceptez les règles de Discord et ces CGU.</p>
+                    <h3>2. Responsabilité</h3>
+                    <p>L'utilisateur est responsable de l'usage des commandes de modération. Syntia décline toute responsabilité en cas d'abus.</p>
                     <h3>3. Avertissement IA</h3>
-                    <p>Les fonctionnalités liées à l'IA (analyse de marché, conseils business) sont fournies à titre indicatif. Llama 3.1 est un modèle probabiliste : ses réponses ne constituent en aucun cas un conseil financier officiel. Vous restez maître de vos investissements.</p>
+                    <p>Les conseils financiers générés par l'IA ne sont pas garantis. Vous êtes responsable de vos investissements.</p>
                 </div>
                 <button class="btn-main" onclick="switchView('home-view')">RETOUR HUB</button>
             </div>
@@ -457,42 +543,31 @@
 
         // 3. NAVIGATION & BACKGROUND MANAGER
         function switchView(id) {
-            // Reset Views
             document.querySelectorAll('.view').forEach(el => { el.classList.remove('active'); el.classList.remove('warp-out'); });
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            
-            // Activate target
             setTimeout(() => document.getElementById(id).classList.add('active'), 50);
             
-            // Update Menu Highlight
             if(id.includes('home')) document.querySelector('.nav-item:nth-child(1)').classList.add('active');
             if(id.includes('labo')) document.querySelector('.nav-item:nth-child(2)').classList.add('active');
             if(id.includes('privacy')) document.querySelector('.nav-item:nth-child(3)').classList.add('active');
             if(id.includes('cgu')) document.querySelector('.nav-item:nth-child(4)').classList.add('active');
 
-            // BACKGROUND & ANIMATION LOGIC
             const homeBg = document.getElementById('home-bg');
             const laboBg = document.getElementById('labo-bg');
             const labLoader = document.getElementById('lab-loader');
             
             if (id === 'labo-view') {
-                // Show specific Lab loader
                 labLoader.classList.add('active');
                 setTimeout(() => { labLoader.classList.remove('active'); }, 800);
-
                 homeBg.classList.remove('active');
                 laboBg.classList.add('active');
-                
-                // Trigger Progress Bars Animation after loader
                 setTimeout(() => {
                     document.querySelectorAll('.progress-rainbow').forEach(bar => {
                         bar.style.width = bar.getAttribute('data-width');
                     });
                 }, 800);
             } else {
-                // Reset Bars
                 document.querySelectorAll('.progress-rainbow').forEach(bar => bar.style.width = '0');
-                
                 if (id === 'bot-view') {
                     homeBg.classList.remove('active');
                     laboBg.classList.remove('active');
@@ -532,7 +607,7 @@
 
         // 5. BOT BOOT
         function runBoot() {
-            const term = document.getElementById('terminal');
+            const term = document.getElementById('terminal-content');
             const bar = document.getElementById('boot-fill');
             const status = document.getElementById('boot-status');
             
@@ -584,15 +659,15 @@
         // 6. COMMANDS
         function exec(cmd) {
             if(!botReady) return;
-            const term = document.getElementById('terminal');
+            const term = document.getElementById('terminal-content');
             term.innerHTML += `<div class="log-line"><span style="color:#aaa">USR></span> ${cmd}</div>`;
             term.scrollTop = term.scrollHeight;
             
             setTimeout(() => {
                 if(cmd === '/modules') {
                     term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Select module:</div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('panel')">[> PANEL INFINITY V40]</span></div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('chat')">[> SYNTIA CHAT-BOT]</span></div>`;
+                    term.innerHTML += `<div class="log-line"><span class="term-link" style="color:#00cec9; border-color:#00cec9" onclick="showModuleDetail('panel')">[> PANEL INFINITY V40]</span></div>`;
+                    term.innerHTML += `<div class="log-line"><span class="term-link" style="color:#00cec9; border-color:#00cec9" onclick="showModuleDetail('chat')">[> SYNTIA CHAT-BOT]</span></div>`;
                 } 
                 else if(cmd === '/identity') {
                     term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Je suis Syntia. Une IA basée sur Llama 3.1, spécialisée dans l'analyse business et la gestion de communautés Discord.</div>`;
@@ -605,7 +680,7 @@
         }
 
         function showModuleDetail(type) {
-            const term = document.getElementById('terminal');
+            const term = document.getElementById('terminal-content');
             let txt = "";
             if(type === 'panel') txt = "INFINITY PANEL V40: Dashboard administratif complet. Logs, Anti-Raid, Gestion des rôles et Analytics.";
             if(type === 'chat') txt = "SYNTIA CHAT-BOT: Agent conversationnel Llama 3.1. Répond aux questions business, crypto et support technique.";
@@ -616,9 +691,7 @@
         // 7. GITHUB SEQUENCE
         function triggerGithubSequence() {
             if(!botReady) return;
-            // Freeze Sidebar
             document.getElementById('sidebar-panel').classList.add('panel-disabled');
-            // Hide Terminal
             const termWrap = document.getElementById('terminal-wrapper');
             termWrap.style.opacity = '0';
             setTimeout(() => {
@@ -628,7 +701,7 @@
         }
 
         function confirmGithub() {
-            window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank'); // LIEN GITHUB
+            window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank');
             cancelGithub();
         }
 
