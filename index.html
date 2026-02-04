@@ -32,15 +32,24 @@
             background: var(--bg-site); color: var(--text-site);
             font-family: 'Outfit', sans-serif; overflow: hidden;
             height: 100vh; width: 100vw;
-            /* Fix mobile scroll bounce */
             overscroll-behavior: none;
         }
 
-        /* --- BACKGROUNDS --- */
+        /* --- BACKGROUNDS ANIMÉS --- */
         .bg-layer { position: fixed; inset: 0; z-index: -1; transition: opacity 0.8s ease-in-out; opacity: 0; pointer-events: none; }
         .bg-layer.active { opacity: 1; }
 
-        .ambient-light { background: radial-gradient(circle at center, #111 0%, #000 100%); }
+        @keyframes gradientFlow {
+            0% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(45deg); }
+            100% { filter: hue-rotate(0deg); }
+        }
+
+        .ambient-light { 
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            animation: gradientFlow 20s infinite ease-in-out; 
+        }
+
         .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5; animation: float 15s infinite alternate; }
         .b1 { width: 60vw; height: 60vw; background: var(--primary); top: -20%; left: -10%; }
         .b2 { width: 50vw; height: 50vw; background: #00cec9; bottom: -20%; right: -10%; animation-delay: -5s; }
@@ -116,13 +125,11 @@
         nav.hidden { transform: translateY(-150%); }
         .brand { font-size: 1.5rem; font-weight: 800; cursor: pointer; z-index: 2; }
         
-        /* Nav Pills Container */
         .nav-pills { 
             background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px; 
             display: flex; gap: 5px; border: 1px solid var(--border-site); 
             backdrop-filter: blur(10px); 
-            overflow-x: auto; /* Scrollable on tiny screens */
-            max-width: 100%;
+            overflow-x: auto; max-width: 100%;
         }
         .nav-item { padding: 10px 25px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; color: #aaa; transition: 0.3s; white-space: nowrap; }
         .nav-item.active { background: #fff; color: #000; font-weight: 800; }
@@ -134,7 +141,7 @@
             display: flex; flex-direction: column; opacity: 0; pointer-events: none; 
             transform: scale(0.95); transition: 0.8s var(--ease); 
             overflow-y: auto; overflow-x: hidden; 
-            -webkit-overflow-scrolling: touch; /* Smooth scroll mobile */
+            -webkit-overflow-scrolling: touch; 
         }
         .view.active { opacity: 1; pointer-events: auto; transform: scale(1); }
 
@@ -203,9 +210,21 @@
         
         #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
         #git-confirm.active { display: flex; opacity: 1; }
-        .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; width: 100%; }
+        
+        /* BOUTON MODIFIÉ (PLUS PETIT) */
+        .rainbow-btn { 
+            position: relative; 
+            padding: 12px 35px; /* Réduit */
+            background: #000; color: #fff; 
+            font-family: 'JetBrains Mono'; font-weight: bold; 
+            font-size: 0.9rem; /* Réduit */
+            border: none; border-radius: 12px; cursor: pointer; 
+            z-index: 1; overflow: hidden; margin-bottom: 20px; 
+            min-width: 200px; /* Taille fixe raisonnable */
+        }
         .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
-        .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 12px; z-index: -1; }
+        .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 10px; z-index: -1; }
+        
         .cancel-btn { background: transparent; color: #888; border: 1px solid #333; padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
         
         .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
@@ -223,30 +242,22 @@
             h1 { font-size: 3rem; }
             nav { padding: 20px 25px; }
             .view { padding: 100px 20px; }
-            
-            /* Bot Layout Switch */
             .bot-grid { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 15px; }
             #sidebar-panel { flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 15px; align-items: center; }
             .cmd-btn { margin-bottom: 0; flex-grow: 1; padding: 12px; font-size: 0.8rem; }
             .github-btn, .kill-btn { margin-top: 0; }
-            
             .matrix-ui { width: 90%; }
             .scramble-text { font-size: 2rem; padding: 15px; min-width: auto; }
-            
-            .lab-grid { grid-template-columns: 1fr; /* 1 colonne sur mobile */ }
-            
-            /* Buttons stack on home */
+            .lab-grid { grid-template-columns: 1fr; }
             .hero > div[style*="display:flex"] { flex-direction: column; width: 100%; }
             .btn-main { width: 100%; justify-content: center; }
-            
-            /* Hide Control Panel text on mobile sidebar to save space */
             #sidebar-panel > div:first-child { display: none; }
+            
+            .rainbow-btn { width: 100%; } /* Sur mobile, il reste large pour l'ergonomie */
         }
-
-        /* Tiny screens */
         @media(max-width: 400px) {
             h1 { font-size: 2.5rem; }
-            .nav-pills { display: none; /* Hide pills on very small screens or make hamburger */ }
+            .nav-pills { display: none; }
             .lab-card { padding: 25px; }
         }
     </style>
@@ -480,7 +491,7 @@
 
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
-        function confirmDiscord() { window.open('https://discord.gg/WSNGJY9SnX', '_blank'); closeDiscordModal(); }
+        function confirmDiscord() { window.open('TON_LIEN_DISCORD', '_blank'); closeDiscordModal(); }
 
         function switchView(id) {
             document.querySelectorAll('.view').forEach(el => { el.classList.remove('active'); el.classList.remove('warp-out'); });
