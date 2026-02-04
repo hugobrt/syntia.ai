@@ -101,31 +101,69 @@ class Client(commands.Bot):
 
 client = Client()
 
-# --- NOUVEAU : TÂCHE DE SYNCHRONISATION VERS LE PANEL ---
-@tasks.loop(seconds=5)
-async def sync_panel():
-    if client.is_ready():
-        # 1. Calculer les membres
-        total = sum([g.member_count for g in client.guilds])
-        
-        # 2. Envoyer dans le fichier keep_alive
-        keep_alive.bot_stats["members"] = total
-        keep_alive.bot_stats["ping"] = round(client.latency * 1000)
-        
-        # 3. Mettre à jour le statut
-        if BOT_EN_PAUSE:
-            keep_alive.bot_stats["status"] = "MAINTENANCE"
-        elif BOT_FAUX_ARRET:
-            keep_alive.bot_stats["status"] = "INVISIBLE"
-        else:
-            keep_alive.bot_stats["status"] = "ONLINE"
+# ====================================================
+# 🔥 BOUCLE DE COMMANDES WEB (Version Salon Choisi)
+# ====================================================
+@tasks.loop(seconds=1)
+async def process_web_commands():
+    # On regarde si une commande est arrivée dans keep_alive
+    if keep_alive.command_queue:
+        cmd = keep_alive.command_queue.pop(0)
+        action = cmd.get("action")
+
+        try:
+            # --- ACTION 1 : MESSAGE DANS UN SALON SPÉCIFIQUE ---
+            if action == "say":
+                msg = cmd.get("content")
+                chan_id = cmd.get("channel_id") # On récupère l'ID choisi sur le site
+
+                if chan_id:
+                    try:
+                        channel = client.get_channel(int(chan_id))
+                        if channel:
+                            await channel.send(msg)
+                            keep_alive.bot_logs.append(f"[ADMIN] Message envoyé dans #{channel.name}")
+                        else:
+                            keep_alive.bot_logs.append(f"[ERREUR] Salon {chan_id} introuvable (Vérifie l'ID)")
+                    except ValueError:
+                        keep_alive.bot_logs.append("[ERREUR] ID de salon invalide")
+                else:
+                    keep_alive.bot_logs.append("[ERREUR] Aucun ID de salon fourni")
+
+            # --- ACTION 2 : KICK ---
+            elif action == "kick":
+                uid = int(cmd.get("user_id"))
+                guild = client.guilds[0]
+                member = await guild.fetch_member(uid)
+                if member:
+                    await member.kick(reason="Via Panel Admin")
+                    keep_alive.bot_logs.append(f"[ADMIN] Kicked {member.name}")
+
+            # --- ACTION 3 : BAN ---
+            elif action == "ban":
+                uid = int(cmd.get("user_id"))
+                guild = client.guilds[0]
+                user = await client.fetch_user(uid)
+                await guild.ban(user, reason="Via Panel Admin")
+                keep_alive.bot_logs.append(f"[ADMIN] Banned {user.name}")
+
+            # --- ACTION 4 : SHUTDOWN ---
+            elif action == "shutdown":
+                global BOT_FAUX_ARRET
+                BOT_FAUX_ARRET = True
+                await client.change_presence(status=discord.Status.invisible)
+                keep_alive.bot_logs.append("[ADMIN] Arrêt simulé activé")
+
+        except Exception as e:
+            keep_alive.bot_logs.append(f"[ERREUR WEB] {e}")
 
 @client.event
 async def on_ready():
     print(f'✅ Bot connecté : {client.user.name}')
 
-    if not sync_panel.is_running():
-        sync_panel.start()
+# DÉMARRAGE DE LA BOUCLE WEB
+    if not process_web_commands.is_running():
+        process_web_commands.start()
 
 # --- DÉMARRAGE RSS ---
     if not veille_business.is_running():
