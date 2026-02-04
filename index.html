@@ -19,10 +19,10 @@
             --glass-strong: rgba(20, 20, 20, 0.9);
             --border-site: rgba(255, 255, 255, 0.1);
             
-            /* HACKER THEME (Image Reference) */
+            /* HACKER THEME (Du fichier index.html) */
             --bg-bot: #000000;
-            --bot-border: #333;
             --green: #00ff41;
+            --dim-green: #004411;
             --red: #ff3333;
             
             --radius-oneui: 35px;
@@ -53,13 +53,14 @@
         }
         @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 0 40px; } }
 
-        /* --- LOADER --- */
+        /* --- LOADERS --- */
         #loader {
             position: fixed; inset: 0; z-index: 10000; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: transform 0.8s var(--ease);
         }
         .loader-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite; }
+        
         #lab-loader {
             position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.95);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -76,6 +77,7 @@
             opacity: 0; pointer-events: none; transition: opacity 0.5s;
         }
         #wip-modal.visible, #discord-modal.active { opacity: 1; pointer-events: auto; }
+        
         .wip-box, .discord-box {
             background: #111; border: 1px solid var(--border-site); padding: 40px;
             border-radius: 30px; text-align: center; max-width: 500px;
@@ -140,163 +142,62 @@
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* =========================================
-           BOT INTERFACE (RESTORED FROM IMAGE)
+           BOT INTERFACE (Style "Index.html")
            ========================================= */
         #bot-view { 
-            background: #000; 
-            font-family: 'JetBrains Mono', monospace; 
-            padding: 40px; 
-            color: var(--green); 
-            overflow: hidden; 
+            background: #000; font-family: 'JetBrains Mono', monospace; padding: 40px; color: var(--green); overflow: hidden; 
         }
+        .scanlines { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.5; }
+        .bot-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; position: relative; z-index: 20; }
         
-        /* Grid Layout */
-        .bot-container {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 20px;
-            height: 100%;
-            position: relative;
-            z-index: 20;
+        /* Les panneaux spécifiques demandés */
+        .panel { 
+            background: rgba(5, 5, 5, 0.95); border: 1px solid var(--dim-green); 
+            border-radius: 20px; padding: 25px; display: flex; flex-direction: column; 
+            box-shadow: 0 0 60px rgba(0, 255, 65, 0.08); position: relative; overflow: hidden; 
+            transition: 0.3s; 
         }
+        .panel-disabled { filter: grayscale(1) brightness(0.3); pointer-events: none; }
 
-        /* Sidebar Styling */
-        .bot-sidebar {
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #111; /* Separation line optional */
-            padding-right: 20px;
+        .cmd-btn { 
+            background: #0a0a0a; border: 1px solid #222; padding: 15px; 
+            border-radius: 12px; color: #444; text-align: left; margin-bottom: 10px; 
+            font-family: 'JetBrains Mono'; transition: 0.3s; display: flex; align-items: center; gap: 10px; 
+            cursor: not-allowed; pointer-events: none; 
         }
+        .cmd-btn.unlocked { cursor: pointer; pointer-events: auto; color: #aaa; border-color: var(--dim-green); }
+        .cmd-btn.unlocked:hover { background: rgba(0, 255, 65, 0.1); color: var(--green); border-color: var(--green); transform: translateX(5px); }
 
-        .sidebar-header {
-            font-size: 0.7rem;
-            color: #666;
-            margin-bottom: 20px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+        .kill-btn { margin-top: auto; border-color: var(--red) !important; color: var(--red) !important; text-align: center; justify-content: center; }
+        .kill-btn:hover { background: var(--red) !important; color: #000 !important; }
 
-        /* The specific buttons from the image */
-        .bot-btn {
-            background: transparent;
-            border: 1px solid #333;
-            color: #aaa;
-            padding: 12px 15px;
-            border-radius: 12px;
-            text-align: left;
-            margin-bottom: 10px;
-            cursor: not-allowed; /* Locked initially */
-            font-family: 'JetBrains Mono';
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .github-btn { margin-top: 15px; border-color: #fff !important; color: #fff !important; text-align: center; justify-content: center; }
+        .github-btn:hover { background: #fff !important; color: #000 !important; }
 
-        /* Unlocked State */
-        .bot-btn.unlocked { cursor: pointer; }
-        .bot-btn.unlocked:hover {
-            border-color: var(--green);
-            color: var(--green);
-            background: rgba(0, 255, 65, 0.05);
+        #terminal-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; transition: opacity 0.5s; }
+        #terminal { flex-grow: 1; overflow-y: auto; padding-right: 10px; font-size: 0.9rem; min-height: 200px; }
+        .log-line { margin-bottom: 6px; display: block; word-break: break-all; }
+        .sys-prefix { color: var(--green); margin-right: 10px; }
+        
+        .term-link { 
+            display: inline-block; margin: 5px 10px 5px 0; padding: 5px 10px; 
+            border: 1px solid var(--green); color: var(--green); cursor: pointer; 
+            font-size: 0.8rem; transition: 0.2s;
         }
+        .term-link:hover { background: var(--green); color: #000; }
 
-        /* Github Button (Centered style) */
-        .github-btn {
-            margin-top: 30px;
-            justify-content: center;
-            border-color: #fff;
-            color: #fff;
-        }
-        .github-btn.unlocked:hover {
-            background: #fff;
-            color: #000;
-        }
+        .boot-bar-con { width: 100%; height: 4px; background: #111; margin-top: 15px; border-radius: 2px; position: relative; overflow: hidden; }
+        .boot-bar-fill { width: 0%; height: 100%; background: var(--green); box-shadow: 0 0 10px var(--green); transition: width 0.1s linear; }
 
-        /* Signal Lost (Red, Bottom) */
-        .kill-btn {
-            margin-top: auto;
-            border-color: var(--red);
-            color: var(--red);
-            justify-content: center;
-        }
-        .kill-btn.unlocked:hover {
-            background: var(--red);
-            color: #000;
-            box-shadow: 0 0 15px rgba(255, 51, 51, 0.3);
-        }
-
-        /* Terminal Panel */
-        .bot-terminal {
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid #333; /* Visual separation */
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .terminal-header {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-            font-size: 0.8rem;
-            color: #666;
-        }
-
-        #terminal-content {
-            flex-grow: 1;
-            overflow-y: auto;
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-
-        .log-line { margin-bottom: 5px; opacity: 0; animation: fadeIn 0.1s forwards; }
-        @keyframes fadeIn { to { opacity: 1; } }
-        .sys-prefix { color: var(--green); margin-right: 10px; font-weight: bold; }
-
-        /* Loading Bar (Boot) */
-        .boot-bar-con {
-            width: 100%; height: 2px; background: #111; margin-top: 10px;
-        }
-        .boot-bar-fill {
-            width: 0%; height: 100%; background: var(--green); 
-            box-shadow: 0 0 10px var(--green); transition: width 0.1s linear;
-        }
-
-        /* Github Confirm Overlay inside Terminal */
-        #git-confirm {
-            display: none; height: 100%; flex-direction: column;
-            justify-content: center; align-items: center; text-align: center;
-            opacity: 0; transition: opacity 0.5s;
-        }
+        #git-confirm { display: none; height: 100%; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.5s; }
         #git-confirm.active { display: flex; opacity: 1; }
 
-        .rainbow-btn {
-            position: relative; padding: 15px 40px; background: #000; color: #fff;
-            font-family: 'JetBrains Mono'; font-weight: bold; border: none; 
-            border-radius: 8px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 15px;
-        }
-        .rainbow-btn::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000);
-            animation: rotateAura 3s linear infinite; z-index: -2;
-        }
-        .rainbow-btn::after {
-            content: ''; position: absolute; inset: 2px; background: #000; border-radius: 6px; z-index: -1;
-        }
+        .rainbow-btn { position: relative; padding: 20px 50px; background: #000; color: #fff; font-family: 'JetBrains Mono'; font-weight: bold; font-size: 1.2rem; border: none; border-radius: 15px; cursor: pointer; z-index: 1; overflow: hidden; margin-bottom: 20px; }
+        .rainbow-btn::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000); animation: rotateAura 3s linear infinite; z-index: -2; }
+        .rainbow-btn::after { content: ''; position: absolute; inset: 3px; background: #000; border-radius: 12px; z-index: -1; }
         @keyframes rotateAura { 100% { transform: rotate(360deg); } }
-
-        .cancel-btn {
-            background: transparent; color: #666; border: 1px solid #333;
-            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: 'JetBrains Mono';
-        }
-        .cancel-btn:hover { color: #fff; border-color: #fff; }
-
-        /* Sidebar Disabled State */
-        .sidebar-disabled { opacity: 0.3; pointer-events: none; }
+        .cancel-btn { background: transparent; color: #888; border: 1px solid #333; padding: 10px 30px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-family: 'JetBrains Mono'; }
+        .cancel-btn:hover { border-color: #fff; color: #fff; }
 
         /* UTILS */
         .warp-out { animation: warp 1s cubic-bezier(0.7,0,0.84,0) forwards; }
@@ -309,7 +210,7 @@
         .legal-card p { color: #aaa; line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
         .legal-card ul { margin-left: 20px; color: #aaa; margin-bottom: 15px; }
 
-        @media(max-width:900px){ h1{font-size:3.5rem;} .bot-container{grid-template-columns:1fr; grid-template-rows: auto 1fr;} .matrix-ui{width:90%;} .scramble-text{font-size:2rem; padding:15px; min-width:auto;} }
+        @media(max-width:900px){ h1{font-size:3.5rem;} .bot-grid{grid-template-columns:1fr; grid-template-rows: auto 1fr;} .matrix-ui{width:90%;} .scramble-text{font-size:2rem; padding:15px; min-width:auto;} }
     </style>
 </head>
 <body>
@@ -341,7 +242,7 @@
         <div class="discord-box">
             <i class="fab fa-discord discord-icon"></i>
             <h2>Rejoindre l'Élite ?</h2>
-            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia.</p>
+            <p style="color:#aaa; margin:20px 0; line-height:1.6;">Vous êtes sur le point de rejoindre le serveur communautaire Syntia. Business, Gaming et IA vous attendent.</p>
             <div style="display:flex; gap:15px; justify-content:center; margin-top:30px;">
                 <button class="btn-ghost" onclick="closeDiscordModal()">ANNULER</button>
                 <button class="btn-main" onclick="confirmDiscord()">REJOINDRE</button>
@@ -436,49 +337,43 @@
 
         <div id="bot-view" class="view">
             <div class="scanlines"></div>
-            <div class="bot-container">
-                <div class="bot-sidebar" id="sidebar-panel">
-                    <div class="sidebar-header">CONTROL PANEL</div>
+            <div class="bot-grid" id="bot-ui">
+                <div class="panel" id="sidebar-panel">
+                    <div style="font-size:0.8rem; color:#666; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">CONTROL PANEL</div>
                     
-                    <button class="bot-btn cmd-btn locked" onclick="exec('/identity')">
-                        <i class="fas fa-fingerprint"></i> IDENTITÉ
-                    </button>
-                    <button class="bot-btn cmd-btn locked" onclick="exec('/modules')">
-                        <i class="fas fa-cubes"></i> MODULES
-                    </button>
-                    <button class="bot-btn cmd-btn locked" onclick="exec('/status')">
-                        <i class="fas fa-chart-bar"></i> STATUS
-                    </button>
+                    <button class="cmd-btn locked" onclick="exec('/identity')"><i class="fas fa-id-card"></i> IDENTITÉ</button>
+                    <button class="cmd-btn locked" onclick="exec('/modules')"><i class="fas fa-list"></i> MODULES</button>
+                    <button class="cmd-btn locked" onclick="exec('/status')"><i class="fas fa-signal"></i> STATUS</button>
                     
-                    <button class="bot-btn github-btn locked" onclick="triggerGithubSequence()">
+                    <button class="cmd-btn locked github-btn" onclick="triggerGithubSequence()">
                         <i class="fab fa-github"></i> GITHUB
                     </button>
 
-                    <button class="bot-btn kill-btn locked" onclick="exitBotMode()">
+                    <button class="cmd-btn locked kill-btn" onclick="exitBotMode()">
                         <i class="fas fa-power-off"></i> SIGNAL LOST
                     </button>
                 </div>
 
-                <div class="bot-terminal">
-                    <div id="terminal-wrapper" style="display:flex; flex-direction:column; height:100%;">
-                        <div class="terminal-header">
+                <div class="panel" style="position:relative;">
+                    
+                    <div id="terminal-wrapper">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; color:#666; font-size:0.8rem;">
                             <span>SSH: root@syntia-core</span>
-                            <span id="boot-status" style="color:yellow">BOOTING...</span>
+                            <span id="boot-status" style="color:yellow">CONNECTING...</span>
                         </div>
-                        
-                        <div id="terminal-content"></div>
-                        
+                        <div id="terminal"></div>
                         <div class="boot-bar-con" id="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
                     </div>
 
                     <div id="git-confirm">
-                        <i class="fab fa-github" style="font-size:3rem; color:#fff; margin-bottom:20px;"></i>
-                        <h3 style="color:#fff; margin-bottom:10px;">EXTERNAL LINK</h3>
-                        <p style="color:#aaa; font-size:0.8rem; margin-bottom:30px;">Accessing source code repository.</p>
+                        <i class="fab fa-github" style="font-size:4rem; color:#fff; margin-bottom:30px;"></i>
+                        <h2 style="margin-bottom:10px; color:#fff;">EXTERNAL LINK DETECTED</h2>
+                        <p style="color:#aaa; margin-bottom:40px;">Quitter le terminal sécurisé pour accéder au code source ?</p>
                         
-                        <button class="rainbow-btn" onclick="confirmGithub()">ACCESS REPO</button>
-                        <button class="cancel-btn" onclick="cancelGithub()">CANCEL</button>
+                        <button class="rainbow-btn" onclick="confirmGithub()">ACCÉDER AU REPO</button>
+                        <button class="cancel-btn" onclick="cancelGithub()">ANNULER</button>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -537,7 +432,7 @@
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
         function closeDiscordModal() { document.getElementById('discord-modal').classList.remove('active'); }
         function confirmDiscord() {
-            window.open('https://discord.gg/muJTPWcpjC', '_blank'); // REMPLACE TON LIEN
+            window.open('TON_LIEN_DISCORD', '_blank'); // REMPLACE TON LIEN
             closeDiscordModal();
         }
 
@@ -607,7 +502,7 @@
 
         // 5. BOT BOOT
         function runBoot() {
-            const term = document.getElementById('terminal-content');
+            const term = document.getElementById('terminal');
             const bar = document.getElementById('boot-fill');
             const status = document.getElementById('boot-status');
             
@@ -659,15 +554,15 @@
         // 6. COMMANDS
         function exec(cmd) {
             if(!botReady) return;
-            const term = document.getElementById('terminal-content');
+            const term = document.getElementById('terminal');
             term.innerHTML += `<div class="log-line"><span style="color:#aaa">USR></span> ${cmd}</div>`;
             term.scrollTop = term.scrollHeight;
             
             setTimeout(() => {
                 if(cmd === '/modules') {
                     term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Select module:</div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" style="color:#00cec9; border-color:#00cec9" onclick="showModuleDetail('panel')">[> PANEL INFINITY V40]</span></div>`;
-                    term.innerHTML += `<div class="log-line"><span class="term-link" style="color:#00cec9; border-color:#00cec9" onclick="showModuleDetail('chat')">[> SYNTIA CHAT-BOT]</span></div>`;
+                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('panel')">[> PANEL INFINITY V40]</span></div>`;
+                    term.innerHTML += `<div class="log-line"><span class="term-link" onclick="showModuleDetail('chat')">[> SYNTIA CHAT-BOT]</span></div>`;
                 } 
                 else if(cmd === '/identity') {
                     term.innerHTML += `<div class="log-line"><span class="sys-prefix">BOT></span> Je suis Syntia. Une IA basée sur Llama 3.1, spécialisée dans l'analyse business et la gestion de communautés Discord.</div>`;
@@ -680,7 +575,7 @@
         }
 
         function showModuleDetail(type) {
-            const term = document.getElementById('terminal-content');
+            const term = document.getElementById('terminal');
             let txt = "";
             if(type === 'panel') txt = "INFINITY PANEL V40: Dashboard administratif complet. Logs, Anti-Raid, Gestion des rôles et Analytics.";
             if(type === 'chat') txt = "SYNTIA CHAT-BOT: Agent conversationnel Llama 3.1. Répond aux questions business, crypto et support technique.";
@@ -701,7 +596,7 @@
         }
 
         function confirmGithub() {
-            window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank');
+            window.open('https://github.com/hugobrt/syntia.ai/releases', '_blank'); // LIEN GITHUB
             cancelGithub();
         }
 
