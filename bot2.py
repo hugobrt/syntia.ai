@@ -104,6 +104,26 @@ client = Client()
 # ====================================================
 # 🔥 BOUCLE DE COMMANDES WEB (Version Salon Choisi)
 # ====================================================
+
+@tasks.loop(seconds=5)
+async def sync_panel():
+    if client.is_ready():
+        # 1. Stats de base
+        keep_alive.bot_stats["members"] = sum([g.member_count for g in client.guilds])
+        keep_alive.bot_stats["ping"] = round(client.latency * 1000)
+        
+        # 2. ENVOI DES LISTES (C'est ça qui remplit tes menus déroulants)
+        if client.guilds:
+            guild = client.guilds[0] # Premier serveur
+            
+            # On chope les salons textuels
+            chans = [{"id": str(c.id), "name": f"#{c.name}"} for c in guild.channels if isinstance(c, discord.TextChannel)]
+            keep_alive.bot_data["channels"] = chans
+            
+            # On chope les membres (pas les bots)
+            mems = [{"id": str(m.id), "name": m.name} for m in guild.members if not m.bot]
+            keep_alive.bot_data["members"] = mems
+
 @tasks.loop(seconds=1)
 async def process_web_commands():
     # On regarde si une commande est arrivée dans keep_alive
@@ -160,6 +180,11 @@ async def process_web_commands():
 @client.event
 async def on_ready():
     print(f'✅ Bot connecté : {client.user.name}')
+
+# DEMARRAGE SYNC_PANEL
+    if not sync_panel.is_running():
+        sync_panel.start()
+        print("🔄 Synchro des listes (Salons/Membres) : ACTIVÉE")
 
 # DÉMARRAGE DE LA BOUCLE WEB
     if not process_web_commands.is_running():
