@@ -21,7 +21,7 @@ Actuellement en version **v2.01 (Beta)**, Syntia propose une gestion de serveur 
 
 ### 🚀 Actuellement Déployé
 - **Infinity Panel (v40)** : Architecture centrale du bot. Gestion des rôles, logs avancés et "sécurité neuronale" pour protéger le serveur.
-- **Bot Discord** : Structure complète et configuration du serveur communautaire.
+- **Bot Discord** : Structure IA complete avec chatbot intégré
 - **Système de Logs** : Suivi des événements du serveur en temps réel.
 - **Keep Alive** : Script pour maintenir le bot actif 24/7 (via Uptime Robot).
 
