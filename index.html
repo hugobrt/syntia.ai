@@ -312,25 +312,53 @@
         .legal-card p { color: var(--text-muted); line-height: 1.6; font-size: 0.95rem; margin-bottom: 15px; }
         .legal-card ul { margin-left: 20px; color: var(--text-muted); margin-bottom: 15px; }
 
+        /* --- NOUVEAU : STATUS MESSAGE (Liquid Glass + Red Dot) --- */
+        #discord-status-msg {
+            position: absolute;
+            bottom: 30px; left: 30px;
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.03); /* Base semi-transparente */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); /* Effet Flou Liquid Glass */
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 30px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono'; font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 1px;
+            display: flex; align-items: center;
+            opacity: 0; transform: translateX(-50px); /* Départ à gauche */
+            transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+            pointer-events: none; z-index: 50;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        #discord-status-msg.visible { opacity: 1; transform: translateX(0); }
+        
+        /* Point Rouge Clignotant */
+        .status-dot {
+            width: 8px; height: 8px;
+            background: var(--red);
+            border-radius: 50%;
+            margin-right: 12px;
+            box-shadow: 0 0 10px var(--red);
+            animation: blinkRed 1.5s infinite;
+        }
+        
+        @keyframes blinkRed { 
+            0%, 100% { opacity: 1; transform: scale(1); } 
+            50% { opacity: 0.5; transform: scale(0.8); } 
+        }
+
         /* --- RESPONSIVE MOBILE --- */
         @media(max-width: 900px) {
             h1 { font-size: 3rem; }
             
-            /* NAVIGATION MOBILE: VERTICALE */
             nav {
-                flex-direction: column; /* Empiler logo et menu */
-                gap: 15px; padding: 15px;
-                background: rgba(0,0,0,0.8); /* Fond pour lisibilité */
-                backdrop-filter: blur(20px);
+                flex-direction: column; gap: 15px; padding: 15px;
+                background: rgba(0,0,0,0.8); backdrop-filter: blur(20px);
             }
             .brand { width: 100%; display: flex; justify-content: flex-start; }
+            .nav-pills { width: 100%; justify-content: center; margin-right: 0; background: transparent; border: none; }
             
-            .nav-pills { 
-                width: 100%; justify-content: center; /* Centrer les pilules */
-                margin-right: 0; background: transparent; border: none;
-            }
-            
-            /* BOUTON THÈME MOBILE */
             #theme-toggle { 
                 top: 20px; right: 20px; bottom: auto; 
                 width: 50px; height: 50px;
@@ -339,7 +367,6 @@
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             } 
             
-            /* BOUTON TERMINAL BOT MOBILE */
             .btn-terminal {
                 background: var(--bg-panel) !important; 
                 border: 2px solid var(--text-site) !important;
@@ -360,6 +387,13 @@
             .btn-main { width: 100%; justify-content: center; }
             #sidebar-panel > div:first-child { display: none; }
             .rainbow-btn { width: 100%; }
+
+            /* Ajustement Message Mobile (Centré) */
+            #discord-status-msg {
+                bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+                width: 90%; justify-content: center;
+            }
+            #discord-status-msg.visible { transform: translateX(-50%) translateY(0); }
         }
         @media(max-width: 400px) {
             h1 { font-size: 2.5rem; }
@@ -444,6 +478,10 @@
                         <i class="fas fa-terminal"></i> Terminal Bot
                     </button>
                 </div>
+            </div>
+            
+            <div id="discord-status-msg">
+                <span class="status-dot"></span> etat discord , sortie decalé
             </div>
         </div>
 
@@ -613,7 +651,11 @@
         function closeWip() {
             const m = document.getElementById('wip-modal');
             m.style.opacity = '0';
-            setTimeout(() => m.style.display = 'none', 500);
+            setTimeout(() => {
+                m.style.display = 'none';
+                // Trigger Message
+                setTimeout(() => document.getElementById('discord-status-msg').classList.add('visible'), 200); 
+            }, 500);
         }
 
         function openDiscordModal() { document.getElementById('discord-modal').classList.add('active'); }
