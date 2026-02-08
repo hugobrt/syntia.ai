@@ -1,8 +1,9 @@
 # 🧠 Syntia.ai
 
-![Version](https://img.shields.io/badge/version-4.0%20BETA-blueviolet?style=for-the-badge)
+![Version V2.01 BETA](https://img.shields.io/badge/Version-V2.01%20BETA-blueviolet?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Made%20with-Python-blue?style=for-the-badge&logo=python&logoColor=white)
 ![AI](https://img.shields.io/badge/Powered%20by-Llama%203.1-orange?style=for-the-badge)
+![Website V4.0 STABLE](https://img.shields.io/badge/Website-V4.0%20STABLE-success?style=for-the-badge)
 
 > **L'alliance ultime entre Business, Gaming et Intelligence Artificielle.**
 
