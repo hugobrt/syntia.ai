@@ -48,7 +48,7 @@ syntia.ai/
 🔒 Confidentialité & Sécurité
 La protection des données est primordiale chez Syntia :
 
-Données Techniques : Seuls les ID (Serveur, Channel, Admin) sont stockés pour le fonctionnement.
+Données Techniques : Seuls les ID (Serveur, Channel, Admin) sont stockés pour le fonctionnement. (ces informations changeront bientot , avec introduction du stockage de ces valeurs directement via l'hebergeur) 
 
 Pas de Logs de Conversation : Syntia n'enregistre aucune conversation, tout est traité en RAM.
 
