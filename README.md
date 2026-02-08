@@ -43,3 +43,39 @@ syntia.ai/
 ├── feed.json           # Données/Configuration des fichier RSS (flux d'actualité [totalement personalisable])
 ├── keep_alive.py       # Serveur web léger pour le maintien en ligne (Ping)
 └── requirements.txt    # Liste des dépendances Python
+
+##⚙️ Installation & Configuration
+Si vous souhaitez cloner ou contribuer au projet, voici comment démarrer :
+
+Cloner le dépôt
+
+Bash
+git clone [https://github.com/hugobrt/syntia.ai.git](https://github.com/hugobrt/syntia.ai.git)
+cd syntia.ai
+Installer les dépendances Assurez-vous d'avoir Python installé, puis lancez :
+
+Bash
+pip install -r requirements.txt
+Configuration des variables Le projet nécessite des clés API (Discord Token, Groq API Key) pour fonctionner. Ces clés doivent être configurées dans vos variables d'environnement (ou un fichier .env localement) pour la sécurité.
+
+Lancer le Bot
+
+Bash
+python bot2.py
+🔒 Confidentialité & Sécurité
+La protection des données est primordiale chez Syntia :
+
+Données Techniques : Seuls les ID (Serveur, Channel, Admin) sont stockés pour le fonctionnement.
+
+Pas de Logs de Conversation : Syntia n'enregistre aucune conversation, tout est traité en RAM.
+
+Sécurité API : Les clés (Groq, Llama) sont chiffrées dans les variables d'environnement (ex: Render Cloud).
+
+👤 Auteur
+Hugo BRT
+
+GitHub: @hugobrt
+
+Site Web: Syntia.ai
+
+© 2026 Syntia.ai - Tous droits réservés.
