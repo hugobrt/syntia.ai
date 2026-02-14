@@ -1,3 +1,9 @@
+'''
+BOT 
+# made with ❤️
+# update 14/02 ❤️
+'''
+
 import discord
 import os
 from discord import app_commands
