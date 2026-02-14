@@ -1,22 +1,3 @@
-"""
-🤖 BOT INFINITY V3.0 - Bot Discord Principal Amélioré
-=====================================================
-Bot principal avec IA Groq, RSS multi-flux, panel web, et bien plus !
-
-Nouvelles fonctionnalités V3.0:
-- Système de cache IA intelligent
-- Statistiques avancées en temps réel
-- Cooldown anti-spam personnalisé
-- Backup automatique des configurations
-- Monitoring de santé du bot
-- Logs professionnels avec rotation
-- Gestion d'erreurs robuste
-- Commandes admin étendues
-
-Auteur: Version améliorée
-Version: 3.0
-"""
-
 import discord
 import os
 from discord import app_commands
