@@ -1,63 +1,403 @@
-'''
+"""
 BOT 
 # made with ❤️
 # update 14/02 ❤️
-'''
+"""
 
 import discord
 import os
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from groq import Groq
 import keep_alive
 import feedparser
-from discord.ext import tasks
 import json
 import logging
 from datetime import datetime, timedelta
-from collections import defaultdict
-import traceback
-from typing import Optional, Dict, List
 import asyncio
+import random
+import aiohttp
 
 # ====================================================
-# 📊 CONFIGURATION DU LOGGING PROFESSIONNEL
+# 📊 LOGGING
 # ====================================================
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(name)-12s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format='%(asctime)s | %(levelname)-8s | %(message)s'
 )
-logger = logging.getLogger('InfinityBot')
-
-# Logs séparés pour les différents modules
-ai_logger = logging.getLogger('AI')
-rss_logger = logging.getLogger('RSS')
-admin_logger = logging.getLogger('Admin')
+logger = logging.getLogger('SyntiaBot')
 
 # ====================================================
-# ⚙️ CONFIGURATION PRINCIPALE
+# 🗄️ GESTION BASE DE DONNÉES POSTGRESQL
 # ====================================================
 
-# --- MODE MAINTENANCE ---
-BOT_EN_PAUSE = False  # Mode maintenance global
-MON_ID_A_MOI = 1096847615775219844  # Ton ID Admin
-BOT_FAUX_ARRET = False  # Mode fantôme
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = False
+db_conn = None
 
-# --- SÉCURITÉ (Variables d'environnement) ---
+def init_database():
+    """Initialise la connexion PostgreSQL et crée les tables."""
+    global USE_POSTGRES, db_conn
+    
+    if not DATABASE_URL:
+        logger.warning("⚠️ DATABASE_URL non trouvée - Mode JSON local")
+        return False
+    
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        # Connexion PostgreSQL
+        db_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = db_conn.cursor()
+        
+        # Table économie
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS economy (
+                user_id BIGINT PRIMARY KEY,
+                coins INTEGER DEFAULT 0,
+                bank INTEGER DEFAULT 0,
+                last_daily TIMESTAMP,
+                last_work TIMESTAMP,
+                total_earned INTEGER DEFAULT 0,
+                total_spent INTEGER DEFAULT 0
+            )
+        """)
+        
+        # Table levels
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS levels (
+                user_id BIGINT,
+                guild_id BIGINT,
+                xp INTEGER DEFAULT 0,
+                level INTEGER DEFAULT 1,
+                messages INTEGER DEFAULT 0,
+                last_xp TIMESTAMP,
+                PRIMARY KEY (user_id, guild_id)
+            )
+        """)
+        
+        # Table config serveur
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS server_config (
+                guild_id BIGINT PRIMARY KEY,
+                ticket_category BIGINT,
+                suggestions_channel BIGINT,
+                logs_channel BIGINT,
+                welcome_channel BIGINT,
+                goodbye_channel BIGINT,
+                level_up_channel BIGINT,
+                xp_per_message INTEGER DEFAULT 15
+            )
+        """)
+        
+        # Table giveaways
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS giveaways (
+                message_id BIGINT PRIMARY KEY,
+                channel_id BIGINT,
+                prize TEXT,
+                end_time TIMESTAMP,
+                winners INTEGER,
+                host_id BIGINT,
+                ended BOOLEAN DEFAULT FALSE
+            )
+        """)
+        
+        # Table cache IA
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ai_cache (
+                prompt_hash TEXT PRIMARY KEY,
+                response TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 🆕 TABLE RSS FEEDS - STOCKÉS EN BDD !
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rss_feeds (
+                id SERIAL PRIMARY KEY,
+                url TEXT UNIQUE NOT NULL,
+                title TEXT,
+                added_by BIGINT,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_check TIMESTAMP,
+                last_link TEXT
+            )
+        """)
+        
+        db_conn.commit()
+        cursor.close()
+        
+        USE_POSTGRES = True
+        logger.info("✅ PostgreSQL connecté - Tables créées")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Erreur PostgreSQL: {e}")
+        logger.info("🔄 Fallback JSON local")
+        return False
+
+# ====================================================
+# 💾 FONCTIONS BDD
+# ====================================================
+
+def get_economy(user_id: int) -> dict:
+    """Récupère les données économie."""
+    if USE_POSTGRES:
+        from psycopg2.extras import RealDictCursor
+        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM economy WHERE user_id = %s", (user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        
+        if result:
+            return dict(result)
+        else:
+            # Créer l'entrée
+            cursor = db_conn.cursor()
+            cursor.execute("""
+                INSERT INTO economy (user_id, coins, bank)
+                VALUES (%s, 0, 0)
+                RETURNING *
+            """, (user_id,))
+            db_conn.commit()
+            cursor.close()
+            return get_economy(user_id)
+    else:
+        # Fallback JSON
+        return {'coins': 0, 'bank': 0, 'last_daily': None, 'last_work': None}
+
+def update_economy(user_id: int, data: dict):
+    """Met à jour l'économie."""
+    if USE_POSTGRES:
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            UPDATE economy 
+            SET coins = %s, bank = %s, last_daily = %s, last_work = %s,
+                total_earned = %s, total_spent = %s
+            WHERE user_id = %s
+        """, (
+            data.get('coins', 0),
+            data.get('bank', 0),
+            data.get('last_daily'),
+            data.get('last_work'),
+            data.get('total_earned', 0),
+            data.get('total_spent', 0),
+            user_id
+        ))
+        db_conn.commit()
+        cursor.close()
+
+def get_level(user_id: int, guild_id: int) -> dict:
+    """Récupère les données level."""
+    if USE_POSTGRES:
+        from psycopg2.extras import RealDictCursor
+        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT * FROM levels 
+            WHERE user_id = %s AND guild_id = %s
+        """, (user_id, guild_id))
+        result = cursor.fetchone()
+        cursor.close()
+        
+        if result:
+            return dict(result)
+        else:
+            cursor = db_conn.cursor()
+            cursor.execute("""
+                INSERT INTO levels (user_id, guild_id, xp, level, messages)
+                VALUES (%s, %s, 0, 1, 0)
+            """, (user_id, guild_id))
+            db_conn.commit()
+            cursor.close()
+            return {'user_id': user_id, 'guild_id': guild_id, 'xp': 0, 'level': 1, 'messages': 0}
+    else:
+        return {'xp': 0, 'level': 1, 'messages': 0}
+
+def update_level(user_id: int, guild_id: int, data: dict):
+    """Met à jour les levels."""
+    if USE_POSTGRES:
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            UPDATE levels 
+            SET xp = %s, level = %s, messages = %s, last_xp = CURRENT_TIMESTAMP
+            WHERE user_id = %s AND guild_id = %s
+        """, (data['xp'], data['level'], data['messages'], user_id, guild_id))
+        db_conn.commit()
+        cursor.close()
+
+def get_server_config(guild_id: int) -> dict:
+    """Récupère la config serveur."""
+    if USE_POSTGRES:
+        from psycopg2.extras import RealDictCursor
+        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM server_config WHERE guild_id = %s", (guild_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        
+        if result:
+            return dict(result)
+        else:
+            default = {
+                'guild_id': guild_id,
+                'ticket_category': None,
+                'suggestions_channel': None,
+                'logs_channel': None,
+                'welcome_channel': None,
+                'level_up_channel': None,
+                'xp_per_message': 15
+            }
+            set_server_config(guild_id, default)
+            return default
+    else:
+        return {'xp_per_message': 15}
+
+def set_server_config(guild_id: int, config: dict):
+    """Définit la config serveur."""
+    if USE_POSTGRES:
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO server_config (
+                guild_id, ticket_category, suggestions_channel, 
+                logs_channel, welcome_channel, level_up_channel, xp_per_message
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (guild_id)
+            DO UPDATE SET
+                ticket_category = %s,
+                suggestions_channel = %s,
+                logs_channel = %s,
+                welcome_channel = %s,
+                level_up_channel = %s,
+                xp_per_message = %s
+        """, (
+            guild_id,
+            config.get('ticket_category'),
+            config.get('suggestions_channel'),
+            config.get('logs_channel'),
+            config.get('welcome_channel'),
+            config.get('level_up_channel'),
+            config.get('xp_per_message', 15),
+            # Pour le UPDATE
+            config.get('ticket_category'),
+            config.get('suggestions_channel'),
+            config.get('logs_channel'),
+            config.get('welcome_channel'),
+            config.get('level_up_channel'),
+            config.get('xp_per_message', 15)
+        ))
+        db_conn.commit()
+        cursor.close()
+
+# 🆕 FONCTIONS RSS EN BASE DE DONNÉES
+def get_rss_feeds() -> list:
+    """Récupère tous les flux RSS depuis la BDD."""
+    if USE_POSTGRES:
+        from psycopg2.extras import RealDictCursor
+        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM rss_feeds ORDER BY added_at DESC")
+        results = cursor.fetchall()
+        cursor.close()
+        return [dict(r) for r in results]
+    else:
+        return []
+
+def add_rss_feed(url: str, title: str = None, user_id: int = None) -> bool:
+    """Ajoute un flux RSS dans la BDD."""
+    if USE_POSTGRES:
+        try:
+            cursor = db_conn.cursor()
+            cursor.execute("""
+                INSERT INTO rss_feeds (url, title, added_by)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (url) DO NOTHING
+                RETURNING id
+            """, (url, title, user_id))
+            result = cursor.fetchone()
+            db_conn.commit()
+            cursor.close()
+            return result is not None
+        except Exception as e:
+            logger.error(f"Erreur ajout RSS: {e}")
+            return False
+    return False
+
+def remove_rss_feed(url: str) -> bool:
+    """Supprime un flux RSS de la BDD."""
+    if USE_POSTGRES:
+        try:
+            cursor = db_conn.cursor()
+            cursor.execute("DELETE FROM rss_feeds WHERE url = %s", (url,))
+            deleted = cursor.rowcount > 0
+            db_conn.commit()
+            cursor.close()
+            return deleted
+        except Exception as e:
+            logger.error(f"Erreur suppression RSS: {e}")
+            return False
+    return False
+
+def update_rss_last_link(url: str, last_link: str):
+    """Met à jour le dernier lien posté pour un flux."""
+    if USE_POSTGRES:
+        try:
+            cursor = db_conn.cursor()
+            cursor.execute("""
+                UPDATE rss_feeds 
+                SET last_link = %s, last_check = CURRENT_TIMESTAMP
+                WHERE url = %s
+            """, (last_link, url))
+            db_conn.commit()
+            cursor.close()
+        except Exception as e:
+            logger.error(f"Erreur update RSS: {e}")
+
+def get_ai_cache(prompt: str) -> str:
+    """Récupère cache IA."""
+    if USE_POSTGRES:
+        prompt_hash = str(hash(prompt.lower().strip()))
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            SELECT response FROM ai_cache 
+            WHERE prompt_hash = %s
+            AND timestamp > NOW() - INTERVAL '24 hours'
+        """, (prompt_hash,))
+        result = cursor.fetchone()
+        cursor.close()
+        if result:
+            return result[0]
+    return None
+
+def set_ai_cache(prompt: str, response: str):
+    """Sauvegarde cache IA."""
+    if USE_POSTGRES:
+        prompt_hash = str(hash(prompt.lower().strip()))
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO ai_cache (prompt_hash, response)
+            VALUES (%s, %s)
+            ON CONFLICT (prompt_hash)
+            DO UPDATE SET response = %s, timestamp = CURRENT_TIMESTAMP
+        """, (prompt_hash, response, response))
+        db_conn.commit()
+        cursor.close()
+
+# ====================================================
+# ⚙️ CONFIGURATION BOT
+# ====================================================
+
+BOT_EN_PAUSE = False
+MON_ID_A_MOI = 1096847615775219844
+BOT_FAUX_ARRET = False
+
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-if not DISCORD_TOKEN or not GROQ_API_KEY:
-    logger.critical("⚠️ ERREUR CRITIQUE : Clés API manquantes !")
-    logger.critical("Vérifie les variables d'environnement DISCORD_TOKEN et GROQ_API_KEY")
+ID_DU_SALON_AUTO = 1459872352249712741
+ID_ROLE_AUTORISE = 1459868384568283207
+ID_SALON_RSS = 1457478400888279282
 
-# --- IDs DISCORD ---
-ID_DU_SALON_AUTO = 1459872352249712741  # Salon IA auto
-ID_ROLE_AUTORISE = 1459868384568283207  # Rôle autorisé
-ID_SALON_RSS = 1457478400888279282      # Salon RSS
-
-# --- CONFIGURATION IA ---
 SYSTEM_INSTRUCTION = """
 Tu es un expert business et finance d'élite.
 Ton rôle est de coacher les utilisateurs pour qu'ils réussissent.
@@ -66,988 +406,460 @@ Ton ton est direct, motivant et pragmatique.
 Sois concis et percutant.
 """
 
-AI_MODEL = "llama-3.1-8b-instant"
-AI_TEMPERATURE = 0.6
-AI_MAX_TOKENS = 1024
-
-# --- FICHIERS DE DONNÉES ---
-DATA_DIR = "bot_data"
-FEEDS_FILE = os.path.join(DATA_DIR, "feeds.json")
-CACHE_FILE = os.path.join(DATA_DIR, "ai_cache.json")
-STATS_FILE = os.path.join(DATA_DIR, "bot_stats.json")
-CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
-
-# Créer le dossier de données
-os.makedirs(DATA_DIR, exist_ok=True)
-
 # ====================================================
-# 🛠️ FONCTIONS UTILITAIRES
+# 🤖 IA GROQ
 # ====================================================
 
-def save_json(filepath: str, data: any) -> bool:
-    """Sauvegarde sécurisée des données JSON."""
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        logger.error(f"Erreur sauvegarde {filepath}: {e}")
-        return False
-
-def load_json(filepath: str, default: any = None) -> any:
-    """Charge des données JSON avec valeur par défaut."""
-    try:
-        if os.path.exists(filepath):
-            with open(filepath, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        logger.error(f"Erreur chargement {filepath}: {e}")
-    return default if default is not None else {}
-
-def load_feeds() -> List[str]:
-    """Charge les flux RSS depuis le fichier ou retourne les flux par défaut."""
-    default_feeds = ["https://www.bfmtv.com/rss/economie/"]
-    feeds = load_json(FEEDS_FILE, default_feeds)
-    if isinstance(feeds, list):
-        return list(set(default_feeds + feeds))
-    return default_feeds
-
-# ====================================================
-# 💾 SYSTÈME DE CACHE IA
-# ====================================================
-
-class AICache:
-    """Système de cache intelligent pour les requêtes IA."""
-    
-    def __init__(self):
-        self.cache: Dict[str, dict] = load_json(CACHE_FILE, {})
-        self.max_cache_size = 100
-        self.cache_duration = timedelta(hours=24)
-        logger.info(f"Cache IA chargé: {len(self.cache)} entrées")
-    
-    def get(self, prompt: str) -> Optional[str]:
-        """Récupère une réponse en cache si elle existe et est valide."""
-        key = self._hash_prompt(prompt)
-        if key in self.cache:
-            entry = self.cache[key]
-            cached_time = datetime.fromisoformat(entry['timestamp'])
-            if datetime.now() - cached_time < self.cache_duration:
-                ai_logger.info("✓ Réponse trouvée en cache")
-                return entry['response']
-            else:
-                # Cache expiré
-                del self.cache[key]
-        return None
-    
-    def set(self, prompt: str, response: str):
-        """Ajoute une réponse au cache."""
-        key = self._hash_prompt(prompt)
-        self.cache[key] = {
-            'response': response,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Limiter la taille du cache
-        if len(self.cache) > self.max_cache_size:
-            # Supprimer les entrées les plus anciennes
-            sorted_cache = sorted(
-                self.cache.items(),
-                key=lambda x: x[1]['timestamp']
-            )
-            self.cache = dict(sorted_cache[-self.max_cache_size:])
-        
-        # Sauvegarder
-        save_json(CACHE_FILE, self.cache)
-    
-    def _hash_prompt(self, prompt: str) -> str:
-        """Crée un hash simple du prompt."""
-        return str(hash(prompt.lower().strip()))
-    
-    def clear(self) -> int:
-        """Vide le cache et retourne le nombre d'entrées supprimées."""
-        count = len(self.cache)
-        self.cache = {}
-        save_json(CACHE_FILE, {})
-        return count
-
-# ====================================================
-# 📊 SYSTÈME DE STATISTIQUES AVANCÉES
-# ====================================================
-
-class BotStatistics:
-    """Gestion des statistiques du bot."""
-    
-    def __init__(self):
-        self.stats = load_json(STATS_FILE, {
-            'ai_requests': 0,
-            'ai_cached': 0,
-            'ai_errors': 0,
-            'commands_used': defaultdict(int),
-            'uptime_start': datetime.now().isoformat(),
-            'messages_processed': 0,
-            'rss_articles_sent': 0
-        })
-        logger.info("Statistiques chargées")
-    
-    def increment(self, key: str, amount: int = 1):
-        """Incrémente une statistique."""
-        if key in self.stats:
-            self.stats[key] += amount
-        else:
-            self.stats[key] = amount
-        
-    def increment_command(self, command_name: str):
-        """Incrémente le compteur d'une commande."""
-        if 'commands_used' not in self.stats:
-            self.stats['commands_used'] = {}
-        if command_name not in self.stats['commands_used']:
-            self.stats['commands_used'][command_name] = 0
-        self.stats['commands_used'][command_name] += 1
-    
-    def save(self):
-        """Sauvegarde les statistiques."""
-        save_json(STATS_FILE, self.stats)
-    
-    def get_summary(self) -> discord.Embed:
-        """Génère un embed avec le résumé des stats."""
-        embed = discord.Embed(
-            title="📊 Statistiques du Bot",
-            color=0x5865F2,
-            timestamp=datetime.now()
-        )
-        
-        # Uptime
-        uptime_start = datetime.fromisoformat(self.stats.get('uptime_start', datetime.now().isoformat()))
-        uptime = datetime.now() - uptime_start
-        days = uptime.days
-        hours, remainder = divmod(uptime.seconds, 3600)
-        minutes, _ = divmod(remainder, 60)
-        
-        embed.add_field(
-            name="⏱️ Uptime",
-            value=f"{days}j {hours}h {minutes}m",
-            inline=True
-        )
-        
-        # Requêtes IA
-        total_ai = self.stats.get('ai_requests', 0)
-        cached_ai = self.stats.get('ai_cached', 0)
-        cache_rate = (cached_ai / total_ai * 100) if total_ai > 0 else 0
-        
-        embed.add_field(
-            name="🤖 Requêtes IA",
-            value=f"**{total_ai}** totales\n{cached_ai} cachées ({cache_rate:.1f}%)",
-            inline=True
-        )
-        
-        # Messages
-        embed.add_field(
-            name="💬 Messages",
-            value=f"**{self.stats.get('messages_processed', 0)}**",
-            inline=True
-        )
-        
-        # RSS
-        embed.add_field(
-            name="📰 Articles RSS",
-            value=f"**{self.stats.get('rss_articles_sent', 0)}**",
-            inline=True
-        )
-        
-        # Top commandes
-        if self.stats.get('commands_used'):
-            top_commands = sorted(
-                self.stats['commands_used'].items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:5]
-            
-            commands_text = "\n".join([f"• `/{cmd}`: {count}" for cmd, count in top_commands])
-            embed.add_field(
-                name="🏆 Top Commandes",
-                value=commands_text or "Aucune",
-                inline=False
-            )
-        
-        embed.set_footer(text="Infinity Bot V3.0")
-        return embed
-
-# ====================================================
-# 🔒 SYSTÈME DE COOLDOWN ANTI-SPAM
-# ====================================================
-
-class CooldownManager:
-    """Gestion des cooldowns pour éviter le spam."""
-    
-    def __init__(self):
-        self.cooldowns: Dict[int, datetime] = {}
-        self.default_cooldown = timedelta(seconds=3)
-    
-    def is_on_cooldown(self, user_id: int, cooldown: timedelta = None) -> bool:
-        """Vérifie si un utilisateur est en cooldown."""
-        if user_id == MON_ID_A_MOI:  # Pas de cooldown pour l'admin
-            return False
-            
-        cooldown = cooldown or self.default_cooldown
-        if user_id in self.cooldowns:
-            time_passed = datetime.now() - self.cooldowns[user_id]
-            return time_passed < cooldown
-        return False
-    
-    def set_cooldown(self, user_id: int):
-        """Définit le cooldown pour un utilisateur."""
-        self.cooldowns[user_id] = datetime.now()
-    
-    def get_remaining(self, user_id: int, cooldown: timedelta = None) -> float:
-        """Retourne le temps restant en secondes."""
-        if user_id not in self.cooldowns:
-            return 0
-        cooldown = cooldown or self.default_cooldown
-        time_passed = datetime.now() - self.cooldowns[user_id]
-        remaining = cooldown - time_passed
-        return max(0, remaining.total_seconds())
-
-# ====================================================
-# 🚀 INITIALISATION DES SYSTÈMES
-# ====================================================
-
-# Démarrage du keep_alive (pour Render)
 keep_alive.keep_alive()
-
-# Connexion Groq
 client_groq = Groq(api_key=GROQ_API_KEY)
 
-# Systèmes globaux
-ai_cache = AICache()
-bot_stats = BotStatistics()
-cooldown_manager = CooldownManager()
-
-# ====================================================
-# 🤖 FONCTION IA AMÉLIORÉE
-# ====================================================
-
-def ask_groq(prompt: str, use_cache: bool = True) -> str:
-    """
-    Envoie une requête à l'IA Groq avec système de cache.
-    
-    Args:
-        prompt: La question à poser
-        use_cache: Utiliser le cache ou forcer une nouvelle requête
-    
-    Returns:
-        La réponse de l'IA
-    """
+def ask_groq(prompt: str) -> str:
     try:
-        # Vérifier le cache
-        if use_cache:
-            cached_response = ai_cache.get(prompt)
-            if cached_response:
-                bot_stats.increment('ai_cached')
-                keep_alive.bot_stats["ai_requests"] += 1
-                return cached_response
-        
-        # Nouvelle requête
-        ai_logger.info(f"Nouvelle requête IA: {prompt[:50]}...")
-        bot_stats.increment('ai_requests')
-        keep_alive.bot_stats["ai_requests"] += 1
+        cached = get_ai_cache(prompt)
+        if cached:
+            return cached
         
         completion = client_groq.chat.completions.create(
-            model=AI_MODEL,
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": SYSTEM_INSTRUCTION},
                 {"role": "user", "content": prompt}
             ],
-            temperature=AI_TEMPERATURE,
-            max_tokens=AI_MAX_TOKENS,
+            temperature=0.6,
+            max_tokens=1024,
         )
         
         response = completion.choices[0].message.content
-        
-        # Mettre en cache
-        if use_cache:
-            ai_cache.set(prompt, response)
-        
-        ai_logger.info("✓ Réponse IA générée avec succès")
+        set_ai_cache(prompt, response)
         return response
-        
     except Exception as e:
-        bot_stats.increment('ai_errors')
-        ai_logger.error(f"Erreur IA: {e}")
-        return f"❌ Erreur IA : {str(e)[:100]}"
+        logger.error(f"Erreur IA: {e}")
+        return "❌ Erreur IA"
 
 # ====================================================
-# 🤖 CONFIGURATION DU BOT
+# 🤖 BOT SETUP
 # ====================================================
 
-class InfinityClient(commands.Bot):
-    """Client Discord personnalisé avec fonctionnalités étendues."""
-    
+class SyntiaBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
         super().__init__(command_prefix="!", intents=intents)
-        
-        # Chargement des flux RSS
-        self.rss_feeds = load_feeds()
-        self.last_posted_links = {}
-        
-        logger.info(f"Bot initialisé avec {len(self.rss_feeds)} flux RSS")
     
     async def setup_hook(self):
-        """Configuration des extensions au démarrage."""
-        # Charger panel.py
         try:
             await self.load_extension("panel")
-            logger.info("✅ Extension 'panel.py' chargée")
+            logger.info("✅ panel.py chargé")
         except Exception as e:
-            logger.error(f"⚠️ Erreur chargement panel: {e}")
+            logger.error(f"⚠️ Erreur panel: {e}")
         
-        # Charger bot_gestion.py
         try:
             await self.load_extension("bot_gestion")
-            logger.info("✅ Extension 'bot_gestion.py' chargée")
+            logger.info("✅ bot_gestion.py chargé")
         except Exception as e:
-            logger.error(f"⚠️ Erreur chargement bot_gestion: {e}")
+            logger.error(f"⚠️ Erreur bot_gestion: {e}")
         
-        # Synchroniser les commandes
         await self.tree.sync()
-        logger.info("🔄 Commandes slash synchronisées")
+        logger.info("🔄 Commandes synchronisées")
 
-client = InfinityClient()
+client = SyntiaBot()
 
 # ====================================================
-# 🔄 TÂCHES AUTOMATIQUES AMÉLIORÉES
+# 🔄 TÂCHES AUTOMATIQUES
 # ====================================================
-
-@tasks.loop(seconds=5)
-async def sync_panel():
-    """Synchronise les données avec le panel web."""
-    if not client.is_ready():
-        return
-    
-    try:
-        # Stats de base
-        keep_alive.bot_stats["members"] = sum([g.member_count for g in client.guilds])
-        keep_alive.bot_stats["ping"] = round(client.latency * 1000)
-        keep_alive.bot_stats["guilds"] = len(client.guilds)
-        
-        # Listes pour le panel web
-        if client.guilds:
-            guild = client.guilds[0]
-            
-            # Salons textuels
-            channels = [
-                {"id": str(c.id), "name": f"#{c.name}"}
-                for c in guild.channels
-                if isinstance(c, discord.TextChannel)
-            ]
-            keep_alive.bot_data["channels"] = channels
-            
-            # Membres (sans bots)
-            members = [
-                {"id": str(m.id), "name": m.name}
-                for m in guild.members
-                if not m.bot
-            ][:100]  # Limiter à 100 pour performance
-            keep_alive.bot_data["members"] = members
-            
-    except Exception as e:
-        logger.error(f"Erreur sync_panel: {e}")
-
-@tasks.loop(seconds=1)
-async def process_web_commands():
-    """Traite les commandes provenant du panel web."""
-    if not keep_alive.command_queue:
-        return
-    
-    cmd = keep_alive.command_queue.pop(0)
-    action = cmd.get("action")
-    
-    try:
-        if action == "say":
-            # Envoyer un message
-            msg = cmd.get("content", "")
-            chan_id = cmd.get("channel_id")
-            
-            if chan_id:
-                channel = client.get_channel(int(chan_id))
-                if channel:
-                    await channel.send(msg)
-                    keep_alive.bot_logs.append(f"[ADMIN] Message → #{channel.name}")
-                    admin_logger.info(f"Message envoyé via panel web dans #{channel.name}")
-                else:
-                    keep_alive.bot_logs.append(f"[ERREUR] Salon {chan_id} introuvable")
-            else:
-                keep_alive.bot_logs.append("[ERREUR] ID salon manquant")
-        
-        elif action == "kick":
-            # Expulser un membre
-            uid = int(cmd.get("user_id"))
-            guild = client.guilds[0]
-            member = await guild.fetch_member(uid)
-            if member:
-                await member.kick(reason="Via Panel Admin Web")
-                keep_alive.bot_logs.append(f"[ADMIN] Kicked {member.name}")
-                admin_logger.warning(f"Membre expulsé via panel web: {member.name}")
-        
-        elif action == "ban":
-            # Bannir un membre
-            uid = int(cmd.get("user_id"))
-            guild = client.guilds[0]
-            user = await client.fetch_user(uid)
-            await guild.ban(user, reason="Via Panel Admin Web")
-            keep_alive.bot_logs.append(f"[ADMIN] Banned {user.name}")
-            admin_logger.warning(f"Membre banni via panel web: {user.name}")
-        
-        elif action == "shutdown":
-            # Mode invisible
-            global BOT_FAUX_ARRET
-            BOT_FAUX_ARRET = True
-            await client.change_presence(status=discord.Status.invisible)
-            keep_alive.bot_logs.append("[ADMIN] Mode invisible activé")
-            admin_logger.info("Bot passé en mode invisible via panel web")
-        
-        elif action == "restart":
-            # Redémarrage simulé
-            BOT_FAUX_ARRET = False
-            await client.change_presence(
-                status=discord.Status.online,
-                activity=discord.Activity(
-                    type=discord.ActivityType.listening,
-                    name="Écoute ton empire se construire"
-                )
-            )
-            keep_alive.bot_logs.append("[ADMIN] Bot redémarré")
-            admin_logger.info("Bot redémarré via panel web")
-    
-    except Exception as e:
-        error_msg = f"[ERREUR WEB] {str(e)[:100]}"
-        keep_alive.bot_logs.append(error_msg)
-        logger.error(f"Erreur commande web ({action}): {e}")
 
 @tasks.loop(minutes=30)
-async def veille_business():
-    """Surveille et publie les nouveaux articles RSS."""
-    channel = client.get_channel(ID_SALON_RSS)
-    if not channel:
-        rss_logger.warning(f"Salon RSS {ID_SALON_RSS} introuvable")
+async def veille_rss():
+    """Vérifie les flux RSS depuis PostgreSQL."""
+    feeds = get_rss_feeds()
+    
+    if not feeds:
+        logger.info("📰 Aucun flux RSS configuré")
         return
     
-    for url in client.rss_feeds:
+    logger.info(f"📰 Vérification de {len(feeds)} flux RSS")
+    
+    channel = client.get_channel(ID_SALON_RSS)
+    if not channel:
+        return
+    
+    for feed_data in feeds:
+        url = feed_data['url']
         try:
             feed = feedparser.parse(url)
             if not feed.entries:
                 continue
             
             latest = feed.entries[0]
+            last_posted = feed_data.get('last_link')
             
-            # Initialisation mémoire pour ce flux
-            if url not in client.last_posted_links:
-                client.last_posted_links[url] = latest.link
+            # Si premier check ou nouveau lien
+            if not last_posted:
+                update_rss_last_link(url, latest.link)
                 continue
             
-            # Vérifier si c'est un nouvel article
-            if latest.link != client.last_posted_links[url]:
-                client.last_posted_links[url] = latest.link
+            if latest.link != last_posted:
+                update_rss_last_link(url, latest.link)
                 
-                # Créer l'embed
                 embed = discord.Embed(
-                    title=f"📰 {feed.feed.get('title', 'Flash Info')}",
+                    title=f"📰 {feed.feed.get('title', feed_data.get('title', 'Actualité'))}",
                     description=f"**[{latest.title}]({latest.link})**",
                     color=0x0055ff,
                     timestamp=datetime.now()
                 )
-                embed.set_footer(text="Actualité Automatique • Infinity Bot")
-                
-                # Ajouter l'image si disponible
-                if 'media_content' in latest and latest.media_content:
-                    try:
-                        embed.set_image(url=latest.media_content[0]['url'])
-                    except:
-                        pass
                 
                 await channel.send(embed=embed)
-                bot_stats.increment('rss_articles_sent')
-                rss_logger.info(f"Nouvel article publié: {latest.title[:50]}...")
-        
+                logger.info(f"✅ Nouveau: {latest.title[:50]}...")
+                
         except Exception as e:
-            rss_logger.error(f"Erreur flux {url}: {e}")
-
-@tasks.loop(minutes=5)
-async def save_statistics():
-    """Sauvegarde périodique des statistiques."""
-    try:
-        bot_stats.save()
-        logger.debug("Statistiques sauvegardées")
-    except Exception as e:
-        logger.error(f"Erreur sauvegarde stats: {e}")
-
-@tasks.loop(hours=1)
-async def health_check():
-    """Vérifie l'état de santé du bot."""
-    try:
-        # Vérifier la latence
-        latency = round(client.latency * 1000)
-        if latency > 500:
-            logger.warning(f"⚠️ Latence élevée: {latency}ms")
-        
-        # Vérifier les guilds
-        if not client.guilds:
-            logger.warning("⚠️ Aucun serveur connecté!")
-        
-        # Vérifier les flux RSS
-        if not client.rss_feeds:
-            logger.warning("⚠️ Aucun flux RSS configuré")
-        
-        logger.info(f"✓ Health check OK - Latence: {latency}ms")
-        
-    except Exception as e:
-        logger.error(f"Erreur health check: {e}")
+            logger.error(f"❌ Erreur flux {url}: {e}")
 
 # ====================================================
-# 📡 ÉVÉNEMENTS DISCORD
+# 📡 ÉVÉNEMENTS
 # ====================================================
 
 @client.event
 async def on_ready():
-    """Événement déclenché quand le bot est prêt."""
     logger.info("=" * 60)
-    logger.info(f"✅ Bot connecté: {client.user.name} (ID: {client.user.id})")
+    logger.info(f"✅ Bot: {client.user.name}")
+    logger.info(f"🗄️ BDD: {'PostgreSQL ✅' if USE_POSTGRES else 'JSON Local ⚠️'}")
+    
+    if USE_POSTGRES:
+        feeds = get_rss_feeds()
+        logger.info(f"📰 Flux RSS en BDD: {len(feeds)}")
+    
     logger.info(f"📊 Serveurs: {len(client.guilds)}")
-    logger.info(f"👥 Membres totaux: {sum(g.member_count for g in client.guilds)}")
-    logger.info(f"📰 Flux RSS: {len(client.rss_feeds)}")
     logger.info("=" * 60)
     
-    # Démarrer les tâches automatiques
-    if not sync_panel.is_running():
-        sync_panel.start()
-        logger.info("🔄 Sync panel: ACTIVÉ")
+    if not veille_rss.is_running():
+        veille_rss.start()
     
-    if not process_web_commands.is_running():
-        process_web_commands.start()
-        logger.info("🌐 Commandes web: ACTIVÉ")
-    
-    if not veille_business.is_running():
-        veille_business.start()
-        logger.info("📡 Module RSS: ACTIVÉ")
-    
-    if not save_statistics.is_running():
-        save_statistics.start()
-        logger.info("💾 Sauvegarde stats: ACTIVÉ")
-    
-    if not health_check.is_running():
-        health_check.start()
-        logger.info("🏥 Health check: ACTIVÉ")
-    
-    # Définir le statut
     await client.change_presence(
         status=discord.Status.online,
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name="Écoute ton empire se construire"
+            name="Écoute ton empire"
         )
     )
 
 @client.event
 async def on_message(message):
-    """Traitement des messages."""
-    # Ignorer ses propres messages
-    if message.author.bot:
+    if message.author.bot or BOT_EN_PAUSE or BOT_FAUX_ARRET:
         return
     
-    bot_stats.increment('messages_processed')
+    # Système XP
+    if isinstance(message.channel, discord.TextChannel):
+        user_data = get_level(message.author.id, message.guild.id)
+        
+        # Ajouter XP (simplifié)
+        xp_gain = random.randint(15, 25)
+        user_data['xp'] += xp_gain
+        user_data['messages'] += 1
+        
+        # Level up check
+        xp_needed = 5 * (user_data['level'] ** 2) + 50 * user_data['level'] + 100
+        if user_data['xp'] >= xp_needed:
+            user_data['level'] += 1
+            user_data['xp'] -= xp_needed
+            
+            # Récompense
+            reward = user_data['level'] * 100
+            eco_data = get_economy(message.author.id)
+            eco_data['coins'] = eco_data.get('coins', 0) + reward
+            update_economy(message.author.id, eco_data)
+            
+            embed = discord.Embed(
+                title="🎉 LEVEL UP !",
+                description=f"{message.author.mention} niveau **{user_data['level']}** !\n💰 +{reward} coins",
+                color=0xFFD700
+            )
+            await message.channel.send(embed=embed)
+        
+        update_level(message.author.id, message.guild.id, user_data)
     
-    # Mode maintenance
-    if BOT_EN_PAUSE and message.author.id != MON_ID_A_MOI:
-        return
-    
-    # Mode fantôme
-    if BOT_FAUX_ARRET and message.author.id != MON_ID_A_MOI:
-        return
-    
-    # Salon auto IA
+    # Salon IA
     if message.channel.id == ID_DU_SALON_AUTO:
-        # Vérifier les permissions
         role = message.guild.get_role(ID_ROLE_AUTORISE)
         if not role or role not in message.author.roles:
-            await message.channel.send(
-                f"❌ {message.author.mention}, tu n'as pas accès à cette fonctionnalité.",
-                delete_after=10
-            )
             return
         
-        # Vérifier le cooldown
-        if cooldown_manager.is_on_cooldown(message.author.id):
-            remaining = cooldown_manager.get_remaining(message.author.id)
-            await message.channel.send(
-                f"⏳ {message.author.mention}, attends encore {remaining:.1f}s",
-                delete_after=5
-            )
-            return
-        
-        # Définir le cooldown
-        cooldown_manager.set_cooldown(message.author.id)
-        
-        # Réaction de traitement
         await message.add_reaction("⏳")
-        
         try:
-            # Générer la réponse
             response = ask_groq(message.content)
-            
-            # Enlever la réaction
             await message.remove_reaction("⏳", client.user)
             await message.add_reaction("✅")
-            
-            # Envoyer la réponse
-            if len(response) > 2000:
-                # Diviser en plusieurs messages
-                chunks = [response[i:i+2000] for i in range(0, len(response), 2000)]
-                for chunk in chunks:
-                    await message.channel.send(chunk)
-            else:
-                await message.channel.send(response)
-        
-        except Exception as e:
+            await message.channel.send(response if len(response) <= 2000 else response[:2000])
+        except:
             await message.remove_reaction("⏳", client.user)
             await message.add_reaction("❌")
-            logger.error(f"Erreur traitement message IA: {e}")
     
-    # Permettre les commandes
     await client.process_commands(message)
 
-@client.event
-async def on_command_error(ctx, error):
-    """Gestion globale des erreurs de commandes."""
-    if isinstance(error, commands.CommandNotFound):
-        return
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ Tu n'as pas les permissions nécessaires.", ephemeral=True)
-    else:
-        logger.error(f"Erreur commande: {error}")
-        await ctx.send(f"❌ Une erreur est survenue: {str(error)[:100]}", ephemeral=True)
-
 # ====================================================
-# 💬 COMMANDES SLASH AMÉLIORÉES
+# 💰 COMMANDES ÉCONOMIE
 # ====================================================
 
-@client.tree.command(name="stats", description="📊 Statistiques complètes du bot")
-async def stats(interaction: discord.Interaction):
-    """Affiche les statistiques du bot."""
-    bot_stats.increment_command("stats")
-    embed = bot_stats.get_summary()
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+@client.tree.command(name="balance", description="💰 Voir ton solde")
+async def balance(interaction: discord.Interaction, membre: discord.Member = None):
+    user = membre or interaction.user
+    data = get_economy(user.id)
+    coins = data.get('coins', 0)
+    bank = data.get('bank', 0)
+    total = coins + bank
+    
+    embed = discord.Embed(title=f"💰 Solde de {user.name}", color=0xFFD700)
+    embed.add_field(name="💵 Portefeuille", value=f"**{coins:,}** coins", inline=True)
+    embed.add_field(name="🏦 Banque", value=f"**{bank:,}** coins", inline=True)
+    embed.add_field(name="💎 Total", value=f"**{total:,}** coins", inline=False)
+    embed.set_thumbnail(url=user.display_avatar.url)
+    
+    await interaction.response.send_message(embed=embed)
 
-@client.tree.command(name="cache", description="🗑️ Gérer le cache de l'IA")
-@app_commands.choices(action=[
-    app_commands.Choice(name="📊 Voir les stats", value="stats"),
-    app_commands.Choice(name="🗑️ Vider le cache", value="clear")
-])
-async def cache(interaction: discord.Interaction, action: app_commands.Choice[str]):
-    """Gestion du cache IA."""
-    bot_stats.increment_command("cache")
+@client.tree.command(name="daily", description="💵 Récompense quotidienne")
+async def daily(interaction: discord.Interaction):
+    data = get_economy(interaction.user.id)
+    last_daily = data.get('last_daily')
     
-    # Sécurité admin
-    if interaction.user.id != MON_ID_A_MOI:
-        await interaction.response.send_message("⛔ Commande réservée à l'admin", ephemeral=True)
-        return
-    
-    if action.value == "stats":
-        embed = discord.Embed(
-            title="💾 Cache IA",
-            color=0x5865F2
-        )
-        embed.add_field(
-            name="📊 Entrées en cache",
-            value=f"**{len(ai_cache.cache)}** réponses",
-            inline=True
-        )
-        embed.add_field(
-            name="⏱️ Durée de vie",
-            value="24 heures",
-            inline=True
-        )
-        
-        cache_rate = (bot_stats.stats.get('ai_cached', 0) / 
-                     max(bot_stats.stats.get('ai_requests', 1), 1) * 100)
-        embed.add_field(
-            name="📈 Taux d'utilisation",
-            value=f"{cache_rate:.1f}%",
-            inline=True
-        )
-        
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-    
-    elif action.value == "clear":
-        count = ai_cache.clear()
-        await interaction.response.send_message(
-            f"✅ Cache vidé ! **{count}** entrées supprimées.",
-            ephemeral=True
-        )
-        logger.info(f"Cache IA vidé: {count} entrées supprimées")
-
-@client.tree.command(name="maintenance", description="🔧 Activer/Désactiver le mode maintenance")
-async def maintenance(interaction: discord.Interaction):
-    """Toggle le mode maintenance."""
-    global BOT_EN_PAUSE
-    bot_stats.increment_command("maintenance")
-    
-    # Sécurité admin
-    if interaction.user.id != MON_ID_A_MOI:
-        await interaction.response.send_message("⛔ Commande réservée à l'admin", ephemeral=True)
-        return
-    
-    BOT_EN_PAUSE = not BOT_EN_PAUSE
-    
-    if BOT_EN_PAUSE:
-        await interaction.response.send_message(
-            "🔴 **Mode Maintenance ACTIVÉ**\nLe bot ne répondra plus aux utilisateurs.",
-            ephemeral=True
-        )
-        await client.change_presence(
-            status=discord.Status.dnd,
-            activity=discord.Game(name="En Maintenance 🛠️")
-        )
-        admin_logger.warning("Mode maintenance activé")
-    else:
-        await interaction.response.send_message(
-            "🟢 **Mode Maintenance DÉSACTIVÉ**\nRetour à la normale !",
-            ephemeral=True
-        )
-        await client.change_presence(
-            status=discord.Status.online,
-            activity=discord.Activity(
-                type=discord.ActivityType.listening,
-                name="Écoute ton empire se construire"
+    if last_daily:
+        if isinstance(last_daily, str):
+            last_daily = datetime.fromisoformat(last_daily)
+        if datetime.now() - last_daily < timedelta(hours=24):
+            remaining = timedelta(hours=24) - (datetime.now() - last_daily)
+            hours = remaining.seconds // 3600
+            minutes = (remaining.seconds % 3600) // 60
+            await interaction.response.send_message(
+                f"⏰ Daily déjà récupéré !\nReviens dans **{hours}h {minutes}m**",
+                ephemeral=True
             )
-        )
-        admin_logger.info("Mode maintenance désactivé")
-
-# ====================================================
-# 📋 CLASSE DE CONFIRMATION CLEAR
-# ====================================================
-
-class ClearConfirmView(discord.ui.View):
-    """Vue de confirmation pour la commande clear."""
+            return
     
-    def __init__(self):
-        super().__init__(timeout=30)
-        self.value = None
+    reward = random.randint(500, 1500)
+    data['coins'] = data.get('coins', 0) + reward
+    data['last_daily'] = datetime.now()
+    update_economy(interaction.user.id, data)
     
-    @discord.ui.button(label="CONFIRMER LA SUPPRESSION", style=discord.ButtonStyle.danger, emoji="🗑️")
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.value = True
-        self.stop()
-    
-    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.value = False
-        self.stop()
-        await interaction.response.send_message(
-            "✅ Opération annulée. Tes messages sont saufs !",
-            ephemeral=True
-        )
-
-@client.tree.command(name="clear", description="🧹 Supprime un certain nombre de messages")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def clear(interaction: discord.Interaction, nombre: int):
-    """Supprime des messages avec confirmation."""
-    bot_stats.increment_command("clear")
-    
-    if nombre < 1:
-        await interaction.response.send_message(
-            "⛔ Tu dois supprimer au moins 1 message !",
-            ephemeral=True
-        )
-        return
-    
-    if nombre > 100:
-        await interaction.response.send_message(
-            "⛔ Maximum 100 messages à la fois !",
-            ephemeral=True
-        )
-        return
-    
-    # Message de confirmation
     embed = discord.Embed(
-        title="🗑️ Demande de suppression",
-        description=f"Tu t'apprêtes à supprimer les **{nombre} derniers messages** de ce salon.\n\n"
-                   f"⚠️ Cette action est **irréversible**.\nVeux-tu vraiment continuer ?",
-        color=0xe74c3c
+        title="💵 Daily Reward",
+        description=f"Tu as reçu **{reward}** coins !",
+        color=0x57F287
+    )
+    await interaction.response.send_message(embed=embed)
+
+@client.tree.command(name="work", description="💼 Travaille pour gagner")
+async def work(interaction: discord.Interaction):
+    data = get_economy(interaction.user.id)
+    last_work = data.get('last_work')
+    
+    if last_work:
+        if isinstance(last_work, str):
+            last_work = datetime.fromisoformat(last_work)
+        if datetime.now() - last_work < timedelta(hours=1):
+            remaining = timedelta(hours=1) - (datetime.now() - last_work)
+            minutes = remaining.seconds // 60
+            await interaction.response.send_message(
+                f"⏰ Repose-toi encore **{minutes}m**",
+                ephemeral=True
+            )
+            return
+    
+    jobs = [
+        ("développeur", 300, 500),
+        ("trader", 200, 600),
+        ("entrepreneur", 400, 700)
+    ]
+    
+    job, min_pay, max_pay = random.choice(jobs)
+    reward = random.randint(min_pay, max_pay)
+    data['coins'] = data.get('coins', 0) + reward
+    data['last_work'] = datetime.now()
+    update_economy(interaction.user.id, data)
+    
+    embed = discord.Embed(
+        title="💼 Travail",
+        description=f"Tu as travaillé comme **{job}** et gagné **{reward}** coins !",
+        color=0x5865F2
+    )
+    await interaction.response.send_message(embed=embed)
+
+# 🏆 COMMANDES LEVELS
+
+@client.tree.command(name="rank", description="🏆 Voir ton niveau")
+async def rank(interaction: discord.Interaction, membre: discord.Member = None):
+    user = membre or interaction.user
+    data = get_level(user.id, interaction.guild.id)
+    xp_needed = 5 * (data['level'] ** 2) + 50 * data['level'] + 100
+    progress = (data['xp'] / xp_needed) * 100
+    
+    embed = discord.Embed(title=f"🏆 Niveau de {user.name}", color=0x5865F2)
+    embed.add_field(name="📊 Niveau", value=f"**{data['level']}**", inline=True)
+    embed.add_field(name="✨ XP", value=f"**{data['xp']}** / {xp_needed}", inline=True)
+    embed.add_field(name="💬 Messages", value=f"**{data['messages']}**", inline=True)
+    embed.set_thumbnail(url=user.display_avatar.url)
+    
+    await interaction.response.send_message(embed=embed)
+
+# 🎮 MINI-JEUX
+
+@client.tree.command(name="coinflip", description="🪙 Pile ou Face")
+async def coinflip(interaction: discord.Interaction, mise: int, choix: str):
+    if choix.lower() not in ["pile", "face"]:
+        await interaction.response.send_message("❌ Choix: pile ou face", ephemeral=True)
+        return
+    
+    data = get_economy(interaction.user.id)
+    if data.get('coins', 0) < mise:
+        await interaction.response.send_message("❌ Pas assez de coins !", ephemeral=True)
+        return
+    
+    result = random.choice(["pile", "face"])
+    won = result == choix.lower()
+    
+    if won:
+        data['coins'] += mise
+        embed = discord.Embed(
+            title="🪙 Pile ou Face",
+            description=f"Résultat: **{result.upper()}**\n\n✅ +{mise*2} coins !",
+            color=0x57F287
+        )
+    else:
+        data['coins'] -= mise
+        embed = discord.Embed(
+            title="🪙 Pile ou Face",
+            description=f"Résultat: **{result.upper()}**\n\n❌ -{mise} coins",
+            color=0xED4245
+        )
+    
+    update_economy(interaction.user.id, data)
+    await interaction.response.send_message(embed=embed)
+
+@client.tree.command(name="slots", description="🎰 Machine à sous")
+async def slots(interaction: discord.Interaction, mise: int):
+    data = get_economy(interaction.user.id)
+    if data.get('coins', 0) < mise:
+        await interaction.response.send_message("❌ Pas assez de coins !", ephemeral=True)
+        return
+    
+    symbols = ["🍒", "🍋", "🍊", "🍇", "💎", "7️⃣"]
+    result = [random.choice(symbols) for _ in range(3)]
+    
+    if result[0] == result[1] == result[2]:
+        multiplier = 10 if result[0] == "💎" else 5
+        winnings = mise * multiplier
+        data['coins'] += winnings
+        
+        embed = discord.Embed(
+            title="🎰 SLOTS",
+            description=f"**[ {' | '.join(result)} ]**\n\n🎉 x{multiplier} ! +{winnings} coins",
+            color=0xFFD700
+        )
+    else:
+        data['coins'] -= mise
+        embed = discord.Embed(
+            title="🎰 SLOTS",
+            description=f"**[ {' | '.join(result)} ]**\n\n❌ -{mise} coins",
+            color=0xED4245
+        )
+    
+    update_economy(interaction.user.id, data)
+    await interaction.response.send_message(embed=embed)
+
+# 🎫 TICKETS
+
+@client.tree.command(name="ticket", description="🎫 Créer un ticket")
+async def ticket(interaction: discord.Interaction, sujet: str, description: str):
+    config = get_server_config(interaction.guild.id)
+    ticket_category_id = config.get('ticket_category')
+    
+    if not ticket_category_id:
+        await interaction.response.send_message(
+            "❌ Système tickets non configuré !",
+            ephemeral=True
+        )
+        return
+    
+    category = interaction.guild.get_channel(ticket_category_id)
+    if not category:
+        await interaction.response.send_message("❌ Catégorie introuvable !", ephemeral=True)
+        return
+    
+    overwrites = {
+        interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    }
+    
+    channel = await category.create_text_channel(
+        name=f"ticket-{interaction.user.name}",
+        overwrites=overwrites
     )
     
-    view = ClearConfirmView()
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    
-    # Attendre la réponse
-    await view.wait()
-    
-    if view.value is None:
-        await interaction.followup.send(
-            "⏳ Trop lent ! J'ai annulé la suppression.",
-            ephemeral=True
-        )
-    elif view.value is True:
-        await interaction.followup.send("♻️ Nettoyage en cours...", ephemeral=True)
-        
-        try:
-            deleted = await interaction.channel.purge(limit=nombre)
-            await interaction.followup.send(
-                f"✅ **Terminé !** J'ai supprimé {len(deleted)} messages.",
-                ephemeral=True
-            )
-            admin_logger.info(f"{len(deleted)} messages supprimés dans #{interaction.channel.name}")
-        except Exception as e:
-            await interaction.followup.send(
-                f"❌ Erreur (Messages trop vieux ?) : {str(e)[:100]}",
-                ephemeral=True
-            )
-
-@clear.error
-async def clear_error(interaction: discord.Interaction, error):
-    if isinstance(error, app_commands.MissingPermissions):
-        await interaction.response.send_message(
-            "⛔ Tu n'as pas la permission de gérer les messages !",
-            ephemeral=True
-        )
-
-@client.tree.command(name="power", description="🔌 Contrôle ON/OFF du bot")
-@app_commands.choices(etat=[
-    app_commands.Choice(name="🟢 ON (Allumer le bot)", value="on"),
-    app_commands.Choice(name="🔴 OFF (Mode Invisible)", value="off")
-])
-async def power(interaction: discord.Interaction, etat: app_commands.Choice[str]):
-    """Contrôle l'état du bot (visible/invisible)."""
-    global BOT_FAUX_ARRET
-    bot_stats.increment_command("power")
-    
-    # Sécurité admin
-    if interaction.user.id != MON_ID_A_MOI:
-        await interaction.response.send_message("⛔ Commande réservée à l'admin", ephemeral=True)
-        return
-    
-    if etat.value == "off":
-        BOT_FAUX_ARRET = True
-        await client.change_presence(status=discord.Status.invisible)
-        await interaction.response.send_message(
-            "🔌 **Bzzzzt...** Bot passé en mode invisible. Je ne réponds plus aux autres.",
-            ephemeral=True
-        )
-        admin_logger.warning("Bot passé en mode invisible")
-    else:
-        BOT_FAUX_ARRET = False
-        await client.change_presence(
-            status=discord.Status.online,
-            activity=discord.Activity(
-                type=discord.ActivityType.listening,
-                name="Écoute ton empire se construire"
-            )
-        )
-        await interaction.response.send_message(
-            "⚡ **Système relancé !** Je suis de retour pour tout le monde.",
-            ephemeral=True
-        )
-        admin_logger.info("Bot réactivé")
-
-@client.tree.command(name="test_rss", description="🧪 Teste le flux RSS maintenant")
-async def test_rss(interaction: discord.Interaction):
-    """Force l'envoi du dernier article RSS."""
-    bot_stats.increment_command("test_rss")
-    
-    # Sécurité admin
-    if interaction.user.id != MON_ID_A_MOI:
-        await interaction.response.send_message("⛔ Commande réservée à l'admin", ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    channel = client.get_channel(ID_SALON_RSS)
-    if not channel:
-        await interaction.followup.send(
-            f"❌ Salon RSS introuvable (ID: {ID_SALON_RSS})",
-            ephemeral=True
-        )
-        return
-    
-    if not client.rss_feeds:
-        await interaction.followup.send("❌ Aucun flux RSS configuré", ephemeral=True)
-        return
-    
-    # Tester le premier flux
-    url = client.rss_feeds[0]
-    
-    try:
-        feed = feedparser.parse(url)
-        
-        if not feed.entries:
-            await interaction.followup.send(f"❌ Le flux semble vide: {url}", ephemeral=True)
-            return
-        
-        latest = feed.entries[0]
-        
-        embed = discord.Embed(
-            title=f"🧪 TEST : {feed.feed.get('title', 'RSS')}",
-            description=f"**[{latest.title}]({latest.link})**",
-            color=0x0055ff,
-            timestamp=datetime.now()
-        )
-        embed.set_footer(text="Envoi test manuel • Infinity Bot")
-        
-        if 'media_content' in latest and latest.media_content:
-            try:
-                embed.set_image(url=latest.media_content[0]['url'])
-            except:
-                pass
-        
-        await channel.send(embed=embed)
-        await interaction.followup.send(
-            f"✅ Article de test posté dans {channel.mention} !",
-            ephemeral=True
-        )
-        rss_logger.info(f"Test RSS manuel effectué: {latest.title[:50]}...")
-        
-    except Exception as e:
-        await interaction.followup.send(
-            f"❌ Erreur : {str(e)[:200]}",
-            ephemeral=True
-        )
-        rss_logger.error(f"Erreur test RSS: {e}")
-
-@client.tree.command(name="ping", description="🏓 Vérifie la latence du bot")
-async def ping(interaction: discord.Interaction):
-    """Affiche la latence du bot."""
-    bot_stats.increment_command("ping")
-    latency = round(client.latency * 1000)
-    
-    if latency < 100:
-        emoji = "🟢"
-        status = "Excellent"
-    elif latency < 200:
-        emoji = "🟡"
-        status = "Bon"
-    else:
-        emoji = "🔴"
-        status = "Lent"
-    
     embed = discord.Embed(
-        title="🏓 Pong!",
-        description=f"{emoji} **{latency}ms** - {status}",
+        title=f"🎫 Ticket de {interaction.user.name}",
+        description=f"**Sujet:** {sujet}\n\n**Description:**\n{description}",
         color=0x5865F2
     )
     
+    await channel.send(f"{interaction.user.mention}", embed=embed)
+    await interaction.response.send_message(f"✅ Ticket: {channel.mention}", ephemeral=True)
+
+# 💡 SUGGESTIONS
+
+@client.tree.command(name="suggest", description="💡 Faire une suggestion")
+async def suggest(interaction: discord.Interaction, suggestion: str):
+    config = get_server_config(interaction.guild.id)
+    suggestions_channel_id = config.get('suggestions_channel')
+    
+    if not suggestions_channel_id:
+        await interaction.response.send_message("❌ Système suggestions non configuré !", ephemeral=True)
+        return
+    
+    channel = interaction.guild.get_channel(suggestions_channel_id)
+    if not channel:
+        await interaction.response.send_message("❌ Salon introuvable !", ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="💡 Nouvelle Suggestion",
+        description=suggestion,
+        color=0x5865F2
+    )
+    embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+    
+    msg = await channel.send(embed=embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+    
+    await interaction.response.send_message("✅ Suggestion envoyée !", ephemeral=True)
+
+# ⚙️ COMMANDES ADMIN
+
+@client.tree.command(name="stats", description="📊 Stats du bot")
+async def stats(interaction: discord.Interaction):
+    embed = discord.Embed(title="📊 Statistiques", color=0x5865F2)
+    embed.add_field(name="🗄️ BDD", value="PostgreSQL ✅" if USE_POSTGRES else "JSON ⚠️", inline=True)
+    
+    if USE_POSTGRES:
+        feeds_count = len(get_rss_feeds())
+        embed.add_field(name="📰 Flux RSS", value=f"**{feeds_count}**", inline=True)
+    
+    embed.add_field(name="👥 Membres", value=f"**{sum(g.member_count for g in client.guilds)}**", inline=True)
+    embed.add_field(name="🏓 Ping", value=f"**{round(client.latency*1000)}ms**", inline=True)
+    
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ====================================================
-# 🚀 DÉMARRAGE DU BOT
+# 🚀 DÉMARRAGE
 # ====================================================
 
 if __name__ == "__main__":
     try:
-        logger.info("🚀 Démarrage d'Infinity Bot V3.0...")
+        logger.info("🚀 Démarrage Syntia.AI Bot RENDER...")
+        
+        # Initialiser BDD
+        init_database()
+        
+        # Lancer le bot
         client.run(DISCORD_TOKEN)
-    except KeyboardInterrupt:
-        logger.info("🛑 Arrêt manuel du bot")
     except Exception as e:
-        logger.critical(f"❌ Erreur critique: {e}")
-        logger.critical(traceback.format_exc())
+        logger.critical(f"❌ Erreur: {e}")
