@@ -811,8 +811,12 @@ class AdminPanel(commands.Cog):
     async def setup_panel(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="🛡️ INFINITY PANEL V44 ULTIMATE",
-            description="*made with love by drt-hbr"
-,
+            description="**Panel d'administration niveau DraftBot**\n\n"
+                       "✨ Nouvelles fonctionnalités V44:\n"
+                       "• 🎨 **Embed Creator ULTIME** (images, couleurs, fields, boutons)\n"
+                       "• 👤 **Info User COMPLET** (toutes les infos possibles)\n"
+                       "• 🔘 **Boutons avancés** (rôles, liens, embeds)\n"
+                       "• Et bien plus !",
             color=0x2b2d31,
             timestamp=datetime.now()
         )
