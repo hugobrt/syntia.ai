@@ -1173,7 +1173,7 @@ class AdminPanel(commands.Cog):
     
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("🛡️ INFINITY PANEL V45 ULTIMATE COMPLET - READY")
+        logger.info("🛡️ INFINITY PANEL V45 ULTIMATE COMPLET - READY")
     
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
