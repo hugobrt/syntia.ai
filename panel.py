@@ -1173,10 +1173,10 @@ class AdminPanel(commands.Cog):
     
     @commands.Cog.listener()
     async def on_ready(self):
-        self.bot.add_view(MainPanelView())
-        self.bot.add_view(ConfigView())
-        self.bot.add_view(RSSView())
-        logger.info("🛡️ INFINITY PANEL V45 ULTIMATE COMPLET - READY")
+        #self.bot.add_view(MainPanelView())
+        #self.bot.add_view(ConfigView())
+        #self.bot.add_view(RSSView())
+        #logger.info("🛡️ INFINITY PANEL V45 ULTIMATE COMPLET - READY")
     
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
