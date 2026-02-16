@@ -18,9 +18,6 @@ import asyncio
 import random
 import aiohttp
 
-# ====================================================
-# 📊 LOGGING
-# ====================================================
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)-8s | %(message)s'
@@ -28,16 +25,16 @@ logging.basicConfig(
 logger = logging.getLogger('SyntiaBot')
 
 # ====================================================
-# 🗄️ GESTION BASE DE DONNÉES POSTGRESQL
+# 🗄️ GESTION BASE DE DONNÉES POSTGRESQL (FIXÉE)
 # ====================================================
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 USE_POSTGRES = False
-db_conn = None
+db_pool = None  # Pool de connexions au lieu d'une connexion unique
 
 def init_database():
-    """Initialise la connexion PostgreSQL et crée les tables."""
-    global USE_POSTGRES, db_conn
+    """Initialise le pool de connexions PostgreSQL."""
+    global USE_POSTGRES, db_pool
     
     if not DATABASE_URL:
         logger.warning("⚠️ DATABASE_URL non trouvée - Mode JSON local")
@@ -45,13 +42,21 @@ def init_database():
     
     try:
         import psycopg2
-        from psycopg2.extras import RealDictCursor
+        from psycopg2 import pool
         
-        # Connexion PostgreSQL
-        db_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cursor = db_conn.cursor()
+        # NOUVEAU: Créer un pool de connexions (min=1, max=10)
+        db_pool = pool.SimpleConnectionPool(
+            minconn=1,
+            maxconn=10,
+            dsn=DATABASE_URL,
+            sslmode='require'
+        )
         
-        # Table économie
+        # Test et création des tables
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        
+        # Tables...
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS economy (
                 user_id BIGINT PRIMARY KEY,
@@ -64,7 +69,6 @@ def init_database():
             )
         """)
         
-        # Table levels
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS levels (
                 user_id BIGINT,
@@ -77,7 +81,6 @@ def init_database():
             )
         """)
         
-        # Table config serveur
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS server_config (
                 guild_id BIGINT PRIMARY KEY,
@@ -91,7 +94,6 @@ def init_database():
             )
         """)
         
-        # Table giveaways
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS giveaways (
                 message_id BIGINT PRIMARY KEY,
@@ -104,7 +106,6 @@ def init_database():
             )
         """)
         
-        # Table cache IA
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS ai_cache (
                 prompt_hash TEXT PRIMARY KEY,
@@ -113,7 +114,6 @@ def init_database():
             )
         """)
         
-        # 🆕 TABLE RSS FEEDS - STOCKÉS EN BDD !
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rss_feeds (
                 id SERIAL PRIMARY KEY,
@@ -126,11 +126,12 @@ def init_database():
             )
         """)
         
-        db_conn.commit()
+        conn.commit()
         cursor.close()
+        db_pool.putconn(conn)
         
         USE_POSTGRES = True
-        logger.info("✅ PostgreSQL connecté - Tables créées")
+        logger.info("✅ PostgreSQL connecté - Pool de connexions créé")
         return True
         
     except Exception as e:
@@ -138,176 +139,264 @@ def init_database():
         logger.info("🔄 Fallback JSON local")
         return False
 
+def get_db_connection():
+    """NOUVEAU: Récupère une connexion du pool."""
+    if USE_POSTGRES and db_pool:
+        try:
+            return db_pool.getconn()
+        except Exception as e:
+            logger.error(f"Erreur récupération connexion: {e}")
+            return None
+    return None
+
+def release_db_connection(conn):
+    """NOUVEAU: Libère une connexion vers le pool."""
+    if USE_POSTGRES and db_pool and conn:
+        try:
+            db_pool.putconn(conn)
+        except Exception as e:
+            logger.error(f"Erreur libération connexion: {e}")
+
 # ====================================================
-# 💾 FONCTIONS BDD
+# 💾 FONCTIONS BDD (FIXÉES)
 # ====================================================
 
 def get_economy(user_id: int) -> dict:
     """Récupère les données économie."""
     if USE_POSTGRES:
-        from psycopg2.extras import RealDictCursor
-        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM economy WHERE user_id = %s", (user_id,))
-        result = cursor.fetchone()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return {'coins': 0, 'bank': 0}
         
-        if result:
-            return dict(result)
-        else:
-            # Créer l'entrée
-            cursor = db_conn.cursor()
-            cursor.execute("""
-                INSERT INTO economy (user_id, coins, bank)
-                VALUES (%s, 0, 0)
-                RETURNING *
-            """, (user_id,))
-            db_conn.commit()
+        try:
+            from psycopg2.extras import RealDictCursor
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM economy WHERE user_id = %s", (user_id,))
+            result = cursor.fetchone()
             cursor.close()
-            return get_economy(user_id)
+            
+            if result:
+                release_db_connection(conn)
+                return dict(result)
+            else:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO economy (user_id, coins, bank)
+                    VALUES (%s, 0, 0)
+                    RETURNING *
+                """, (user_id,))
+                conn.commit()
+                cursor.close()
+                release_db_connection(conn)
+                return get_economy(user_id)
+        except Exception as e:
+            logger.error(f"Erreur get_economy: {e}")
+            release_db_connection(conn)
+            return {'coins': 0, 'bank': 0}
     else:
-        # Fallback JSON
         return {'coins': 0, 'bank': 0, 'last_daily': None, 'last_work': None}
 
 def update_economy(user_id: int, data: dict):
     """Met à jour l'économie."""
     if USE_POSTGRES:
-        cursor = db_conn.cursor()
-        cursor.execute("""
-            UPDATE economy 
-            SET coins = %s, bank = %s, last_daily = %s, last_work = %s,
-                total_earned = %s, total_spent = %s
-            WHERE user_id = %s
-        """, (
-            data.get('coins', 0),
-            data.get('bank', 0),
-            data.get('last_daily'),
-            data.get('last_work'),
-            data.get('total_earned', 0),
-            data.get('total_spent', 0),
-            user_id
-        ))
-        db_conn.commit()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE economy 
+                SET coins = %s, bank = %s, last_daily = %s, last_work = %s,
+                    total_earned = %s, total_spent = %s
+                WHERE user_id = %s
+            """, (
+                data.get('coins', 0),
+                data.get('bank', 0),
+                data.get('last_daily'),
+                data.get('last_work'),
+                data.get('total_earned', 0),
+                data.get('total_spent', 0),
+                user_id
+            ))
+            conn.commit()
+            cursor.close()
+            release_db_connection(conn)
+        except Exception as e:
+            logger.error(f"Erreur update_economy: {e}")
+            release_db_connection(conn)
 
 def get_level(user_id: int, guild_id: int) -> dict:
     """Récupère les données level."""
     if USE_POSTGRES:
-        from psycopg2.extras import RealDictCursor
-        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("""
-            SELECT * FROM levels 
-            WHERE user_id = %s AND guild_id = %s
-        """, (user_id, guild_id))
-        result = cursor.fetchone()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return {'xp': 0, 'level': 1, 'messages': 0}
         
-        if result:
-            return dict(result)
-        else:
-            cursor = db_conn.cursor()
+        try:
+            from psycopg2.extras import RealDictCursor
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
-                INSERT INTO levels (user_id, guild_id, xp, level, messages)
-                VALUES (%s, %s, 0, 1, 0)
+                SELECT * FROM levels 
+                WHERE user_id = %s AND guild_id = %s
             """, (user_id, guild_id))
-            db_conn.commit()
+            result = cursor.fetchone()
             cursor.close()
-            return {'user_id': user_id, 'guild_id': guild_id, 'xp': 0, 'level': 1, 'messages': 0}
+            
+            if result:
+                release_db_connection(conn)
+                return dict(result)
+            else:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO levels (user_id, guild_id, xp, level, messages)
+                    VALUES (%s, %s, 0, 1, 0)
+                """, (user_id, guild_id))
+                conn.commit()
+                cursor.close()
+                release_db_connection(conn)
+                return {'user_id': user_id, 'guild_id': guild_id, 'xp': 0, 'level': 1, 'messages': 0}
+        except Exception as e:
+            logger.error(f"Erreur get_level: {e}")
+            release_db_connection(conn)
+            return {'xp': 0, 'level': 1, 'messages': 0}
     else:
         return {'xp': 0, 'level': 1, 'messages': 0}
 
 def update_level(user_id: int, guild_id: int, data: dict):
     """Met à jour les levels."""
     if USE_POSTGRES:
-        cursor = db_conn.cursor()
-        cursor.execute("""
-            UPDATE levels 
-            SET xp = %s, level = %s, messages = %s, last_xp = CURRENT_TIMESTAMP
-            WHERE user_id = %s AND guild_id = %s
-        """, (data['xp'], data['level'], data['messages'], user_id, guild_id))
-        db_conn.commit()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE levels 
+                SET xp = %s, level = %s, messages = %s, last_xp = CURRENT_TIMESTAMP
+                WHERE user_id = %s AND guild_id = %s
+            """, (data['xp'], data['level'], data['messages'], user_id, guild_id))
+            conn.commit()
+            cursor.close()
+            release_db_connection(conn)
+        except Exception as e:
+            logger.error(f"Erreur update_level: {e}")
+            release_db_connection(conn)
 
 def get_server_config(guild_id: int) -> dict:
     """Récupère la config serveur."""
     if USE_POSTGRES:
-        from psycopg2.extras import RealDictCursor
-        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM server_config WHERE guild_id = %s", (guild_id,))
-        result = cursor.fetchone()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return {'xp_per_message': 15}
         
-        if result:
-            return dict(result)
-        else:
-            default = {
-                'guild_id': guild_id,
-                'ticket_category': None,
-                'suggestions_channel': None,
-                'logs_channel': None,
-                'welcome_channel': None,
-                'level_up_channel': None,
-                'xp_per_message': 15
-            }
-            set_server_config(guild_id, default)
-            return default
+        try:
+            from psycopg2.extras import RealDictCursor
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM server_config WHERE guild_id = %s", (guild_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if result:
+                release_db_connection(conn)
+                return dict(result)
+            else:
+                default = {
+                    'guild_id': guild_id,
+                    'ticket_category': None,
+                    'suggestions_channel': None,
+                    'logs_channel': None,
+                    'welcome_channel': None,
+                    'level_up_channel': None,
+                    'xp_per_message': 15
+                }
+                set_server_config(guild_id, default)
+                release_db_connection(conn)
+                return default
+        except Exception as e:
+            logger.error(f"Erreur get_server_config: {e}")
+            release_db_connection(conn)
+            return {'xp_per_message': 15}
     else:
         return {'xp_per_message': 15}
 
 def set_server_config(guild_id: int, config: dict):
     """Définit la config serveur."""
     if USE_POSTGRES:
-        cursor = db_conn.cursor()
-        cursor.execute("""
-            INSERT INTO server_config (
-                guild_id, ticket_category, suggestions_channel, 
-                logs_channel, welcome_channel, level_up_channel, xp_per_message
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (guild_id)
-            DO UPDATE SET
-                ticket_category = %s,
-                suggestions_channel = %s,
-                logs_channel = %s,
-                welcome_channel = %s,
-                level_up_channel = %s,
-                xp_per_message = %s
-        """, (
-            guild_id,
-            config.get('ticket_category'),
-            config.get('suggestions_channel'),
-            config.get('logs_channel'),
-            config.get('welcome_channel'),
-            config.get('level_up_channel'),
-            config.get('xp_per_message', 15),
-            # Pour le UPDATE
-            config.get('ticket_category'),
-            config.get('suggestions_channel'),
-            config.get('logs_channel'),
-            config.get('welcome_channel'),
-            config.get('level_up_channel'),
-            config.get('xp_per_message', 15)
-        ))
-        db_conn.commit()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO server_config (
+                    guild_id, ticket_category, suggestions_channel, 
+                    logs_channel, welcome_channel, level_up_channel, xp_per_message
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (guild_id)
+                DO UPDATE SET
+                    ticket_category = %s,
+                    suggestions_channel = %s,
+                    logs_channel = %s,
+                    welcome_channel = %s,
+                    level_up_channel = %s,
+                    xp_per_message = %s
+            """, (
+                guild_id,
+                config.get('ticket_category'),
+                config.get('suggestions_channel'),
+                config.get('logs_channel'),
+                config.get('welcome_channel'),
+                config.get('level_up_channel'),
+                config.get('xp_per_message', 15),
+                config.get('ticket_category'),
+                config.get('suggestions_channel'),
+                config.get('logs_channel'),
+                config.get('welcome_channel'),
+                config.get('level_up_channel'),
+                config.get('xp_per_message', 15)
+            ))
+            conn.commit()
+            cursor.close()
+            release_db_connection(conn)
+        except Exception as e:
+            logger.error(f"Erreur set_server_config: {e}")
+            release_db_connection(conn)
 
-# 🆕 FONCTIONS RSS EN BASE DE DONNÉES
 def get_rss_feeds() -> list:
     """Récupère tous les flux RSS depuis la BDD."""
     if USE_POSTGRES:
-        from psycopg2.extras import RealDictCursor
-        cursor = db_conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT * FROM rss_feeds ORDER BY added_at DESC")
-        results = cursor.fetchall()
-        cursor.close()
-        return [dict(r) for r in results]
+        conn = get_db_connection()
+        if not conn:
+            return []
+        
+        try:
+            from psycopg2.extras import RealDictCursor
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("SELECT * FROM rss_feeds ORDER BY added_at DESC")
+            results = cursor.fetchall()
+            cursor.close()
+            release_db_connection(conn)
+            return [dict(r) for r in results]
+        except Exception as e:
+            logger.error(f"Erreur get_rss_feeds: {e}")
+            release_db_connection(conn)
+            return []
     else:
         return []
 
 def add_rss_feed(url: str, title: str = None, user_id: int = None) -> bool:
     """Ajoute un flux RSS dans la BDD."""
     if USE_POSTGRES:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
         try:
-            cursor = db_conn.cursor()
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO rss_feeds (url, title, added_by)
                 VALUES (%s, %s, %s)
@@ -315,73 +404,105 @@ def add_rss_feed(url: str, title: str = None, user_id: int = None) -> bool:
                 RETURNING id
             """, (url, title, user_id))
             result = cursor.fetchone()
-            db_conn.commit()
+            conn.commit()
             cursor.close()
+            release_db_connection(conn)
             return result is not None
         except Exception as e:
             logger.error(f"Erreur ajout RSS: {e}")
+            release_db_connection(conn)
             return False
     return False
 
 def remove_rss_feed(url: str) -> bool:
     """Supprime un flux RSS de la BDD."""
     if USE_POSTGRES:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
         try:
-            cursor = db_conn.cursor()
+            cursor = conn.cursor()
             cursor.execute("DELETE FROM rss_feeds WHERE url = %s", (url,))
             deleted = cursor.rowcount > 0
-            db_conn.commit()
+            conn.commit()
             cursor.close()
+            release_db_connection(conn)
             return deleted
         except Exception as e:
             logger.error(f"Erreur suppression RSS: {e}")
+            release_db_connection(conn)
             return False
     return False
 
 def update_rss_last_link(url: str, last_link: str):
     """Met à jour le dernier lien posté pour un flux."""
     if USE_POSTGRES:
+        conn = get_db_connection()
+        if not conn:
+            return
+        
         try:
-            cursor = db_conn.cursor()
+            cursor = conn.cursor()
             cursor.execute("""
                 UPDATE rss_feeds 
                 SET last_link = %s, last_check = CURRENT_TIMESTAMP
                 WHERE url = %s
             """, (last_link, url))
-            db_conn.commit()
+            conn.commit()
             cursor.close()
+            release_db_connection(conn)
         except Exception as e:
             logger.error(f"Erreur update RSS: {e}")
+            release_db_connection(conn)
 
 def get_ai_cache(prompt: str) -> str:
     """Récupère cache IA."""
     if USE_POSTGRES:
-        prompt_hash = str(hash(prompt.lower().strip()))
-        cursor = db_conn.cursor()
-        cursor.execute("""
-            SELECT response FROM ai_cache 
-            WHERE prompt_hash = %s
-            AND timestamp > NOW() - INTERVAL '24 hours'
-        """, (prompt_hash,))
-        result = cursor.fetchone()
-        cursor.close()
-        if result:
-            return result[0]
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        try:
+            prompt_hash = str(hash(prompt.lower().strip()))
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT response FROM ai_cache 
+                WHERE prompt_hash = %s
+                AND timestamp > NOW() - INTERVAL '24 hours'
+            """, (prompt_hash,))
+            result = cursor.fetchone()
+            cursor.close()
+            release_db_connection(conn)
+            if result:
+                return result[0]
+        except Exception as e:
+            logger.error(f"Erreur get_ai_cache: {e}")
+            release_db_connection(conn)
     return None
 
 def set_ai_cache(prompt: str, response: str):
     """Sauvegarde cache IA."""
     if USE_POSTGRES:
-        prompt_hash = str(hash(prompt.lower().strip()))
-        cursor = db_conn.cursor()
-        cursor.execute("""
-            INSERT INTO ai_cache (prompt_hash, response)
-            VALUES (%s, %s)
-            ON CONFLICT (prompt_hash)
-            DO UPDATE SET response = %s, timestamp = CURRENT_TIMESTAMP
-        """, (prompt_hash, response, response))
-        db_conn.commit()
-        cursor.close()
+        conn = get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            prompt_hash = str(hash(prompt.lower().strip()))
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO ai_cache (prompt_hash, response)
+                VALUES (%s, %s)
+                ON CONFLICT (prompt_hash)
+                DO UPDATE SET response = %s, timestamp = CURRENT_TIMESTAMP
+            """, (prompt_hash, response, response))
+            conn.commit()
+            cursor.close()
+            release_db_connection(conn)
+        except Exception as e:
+            logger.error(f"Erreur set_ai_cache: {e}")
+            release_db_connection(conn)
 
 # ====================================================
 # ⚙️ CONFIGURATION BOT
@@ -475,7 +596,6 @@ async def veille_rss():
     feeds = get_rss_feeds()
     
     if not feeds:
-        logger.info("📰 Aucun flux RSS configuré")
         return
     
     logger.info(f"📰 Vérification de {len(feeds)} flux RSS")
@@ -494,7 +614,6 @@ async def veille_rss():
             latest = feed.entries[0]
             last_posted = feed_data.get('last_link')
             
-            # Si premier check ou nouveau lien
             if not last_posted:
                 update_rss_last_link(url, latest.link)
                 continue
@@ -523,7 +642,7 @@ async def veille_rss():
 async def on_ready():
     logger.info("=" * 60)
     logger.info(f"✅ Bot: {client.user.name}")
-    logger.info(f"🗄️ BDD: {'PostgreSQL ✅' if USE_POSTGRES else 'JSON Local ⚠️'}")
+    logger.info(f"🗄️ BDD: {'PostgreSQL ✅ (Pool)' if USE_POSTGRES else 'JSON Local ⚠️'}")
     
     if USE_POSTGRES:
         feeds = get_rss_feeds()
@@ -548,22 +667,18 @@ async def on_message(message):
     if message.author.bot or BOT_EN_PAUSE or BOT_FAUX_ARRET:
         return
     
-    # Système XP
     if isinstance(message.channel, discord.TextChannel):
         user_data = get_level(message.author.id, message.guild.id)
         
-        # Ajouter XP (simplifié)
         xp_gain = random.randint(15, 25)
         user_data['xp'] += xp_gain
         user_data['messages'] += 1
         
-        # Level up check
         xp_needed = 5 * (user_data['level'] ** 2) + 50 * user_data['level'] + 100
         if user_data['xp'] >= xp_needed:
             user_data['level'] += 1
             user_data['xp'] -= xp_needed
             
-            # Récompense
             reward = user_data['level'] * 100
             eco_data = get_economy(message.author.id)
             eco_data['coins'] = eco_data.get('coins', 0) + reward
@@ -578,7 +693,6 @@ async def on_message(message):
         
         update_level(message.author.id, message.guild.id, user_data)
     
-    # Salon IA
     if message.channel.id == ID_DU_SALON_AUTO:
         role = message.guild.get_role(ID_ROLE_AUTORISE)
         if not role or role not in message.author.roles:
@@ -597,7 +711,7 @@ async def on_message(message):
     await client.process_commands(message)
 
 # ====================================================
-# 💰 COMMANDES ÉCONOMIE
+# 💰 COMMANDES
 # ====================================================
 
 @client.tree.command(name="balance", description="💰 Voir ton solde")
@@ -682,14 +796,11 @@ async def work(interaction: discord.Interaction):
     )
     await interaction.response.send_message(embed=embed)
 
-# 🏆 COMMANDES LEVELS
-
 @client.tree.command(name="rank", description="🏆 Voir ton niveau")
 async def rank(interaction: discord.Interaction, membre: discord.Member = None):
     user = membre or interaction.user
     data = get_level(user.id, interaction.guild.id)
     xp_needed = 5 * (data['level'] ** 2) + 50 * data['level'] + 100
-    progress = (data['xp'] / xp_needed) * 100
     
     embed = discord.Embed(title=f"🏆 Niveau de {user.name}", color=0x5865F2)
     embed.add_field(name="📊 Niveau", value=f"**{data['level']}**", inline=True)
@@ -698,8 +809,6 @@ async def rank(interaction: discord.Interaction, membre: discord.Member = None):
     embed.set_thumbnail(url=user.display_avatar.url)
     
     await interaction.response.send_message(embed=embed)
-
-# 🎮 MINI-JEUX
 
 @client.tree.command(name="coinflip", description="🪙 Pile ou Face")
 async def coinflip(interaction: discord.Interaction, mise: int, choix: str):
@@ -764,8 +873,6 @@ async def slots(interaction: discord.Interaction, mise: int):
     update_economy(interaction.user.id, data)
     await interaction.response.send_message(embed=embed)
 
-# 🎫 TICKETS
-
 @client.tree.command(name="ticket", description="🎫 Créer un ticket")
 async def ticket(interaction: discord.Interaction, sujet: str, description: str):
     config = get_server_config(interaction.guild.id)
@@ -803,8 +910,6 @@ async def ticket(interaction: discord.Interaction, sujet: str, description: str)
     await channel.send(f"{interaction.user.mention}", embed=embed)
     await interaction.response.send_message(f"✅ Ticket: {channel.mention}", ephemeral=True)
 
-# 💡 SUGGESTIONS
-
 @client.tree.command(name="suggest", description="💡 Faire une suggestion")
 async def suggest(interaction: discord.Interaction, suggestion: str):
     config = get_server_config(interaction.guild.id)
@@ -832,12 +937,10 @@ async def suggest(interaction: discord.Interaction, suggestion: str):
     
     await interaction.response.send_message("✅ Suggestion envoyée !", ephemeral=True)
 
-# ⚙️ COMMANDES ADMIN
-
 @client.tree.command(name="stats", description="📊 Stats du bot")
 async def stats(interaction: discord.Interaction):
     embed = discord.Embed(title="📊 Statistiques", color=0x5865F2)
-    embed.add_field(name="🗄️ BDD", value="PostgreSQL ✅" if USE_POSTGRES else "JSON ⚠️", inline=True)
+    embed.add_field(name="🗄️ BDD", value="PostgreSQL ✅ (Pool)" if USE_POSTGRES else "JSON ⚠️", inline=True)
     
     if USE_POSTGRES:
         feeds_count = len(get_rss_feeds())
@@ -846,7 +949,7 @@ async def stats(interaction: discord.Interaction):
     embed.add_field(name="👥 Membres", value=f"**{sum(g.member_count for g in client.guilds)}**", inline=True)
     embed.add_field(name="🏓 Ping", value=f"**{round(client.latency*1000)}ms**", inline=True)
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed)
 
 # ====================================================
 # 🚀 DÉMARRAGE
@@ -854,12 +957,10 @@ async def stats(interaction: discord.Interaction):
 
 if __name__ == "__main__":
     try:
-        logger.info("🚀 Démarrage Syntia.AI Bot RENDER...")
+        logger.info("🚀 Démarrage Syntia.AI Bot V4.1 FIXED...")
         
-        # Initialiser BDD
         init_database()
         
-        # Lancer le bot
         client.run(DISCORD_TOKEN)
     except Exception as e:
         logger.critical(f"❌ Erreur: {e}")
