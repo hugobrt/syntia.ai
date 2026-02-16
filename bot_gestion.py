@@ -214,7 +214,7 @@ status_themes = StatusThemes()
 class StatusRotation:
     def __init__(self):
         self.config = load_json(STATUS_ROTATION_FILE, {
-            'enabled': False,
+            'enabled': True,
             'interval_minutes': 5,
             'current_index': 0,
             'theme': 'business'
