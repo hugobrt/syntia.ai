@@ -25,8 +25,11 @@ logger = logging.getLogger('SyntiaBot')
 # CONFIGURATION VARIABLES
 # ====================================================
 
-AIVEN_URL = os.getenv("AIVEN_DATABASE_URL")   # Toujours allumé - données critiques
-NEON_URL   = os.getenv("DATABASE_URL")         # Serverless - données légères
+# Essayer plusieurs noms possibles pour Aiven
+AIVEN_URL = (os.getenv("AIVEN_DATABASE_URL") or 
+             os.getenv("DATABASE_URL_AIVEN") or 
+             os.getenv("AIVEN_URL"))
+NEON_URL = os.getenv("DATABASE_URL")
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY")
@@ -56,11 +59,13 @@ def init_aiven():
     global USE_AIVEN, aiven_pool
     if not AIVEN_URL:
         logger.error("=" * 60)
-        logger.error("AIVEN_DATABASE_URL manquante dans les variables d'environnement !")
-        logger.error("RSS et Market ne fonctionneront PAS sans cette variable.")
-        logger.error("Ajoute AIVEN_DATABASE_URL sur Render Dashboard > Environment")
+        logger.error("AIVEN_DATABASE_URL manquante !")
+        logger.error("Essayé: AIVEN_DATABASE_URL, DATABASE_URL_AIVEN, AIVEN_URL")
+        logger.error("Aucune de ces variables n'existe dans l'environnement !")
+        logger.error("Ajoute une de ces variables sur Render Dashboard > Environment")
         logger.error("=" * 60)
         return False
+    logger.info(f"AIVEN URL détectée: {AIVEN_URL[:30]}..." if len(AIVEN_URL) > 30 else "URL trop courte")
     try:
         import psycopg2
         from psycopg2 import pool as pg_pool
@@ -140,6 +145,7 @@ def init_neon():
     if not NEON_URL:
         logger.warning("DATABASE_URL (Neon) manquante")
         return False
+    logger.info(f"NEON URL détectée: {NEON_URL[:30]}..." if len(NEON_URL) > 30 else "URL trop courte")
     try:
         import psycopg2
         from psycopg2 import pool as pg_pool
@@ -1237,6 +1243,84 @@ async def dice(interaction: discord.Interaction, mise: int):
     else: embed=discord.Embed(title="🎲 Dés",description=f"Toi: **{pr}** | Bot: **{br}**\n\nÉgalité !",color=0xFEE75C)
     update_economy(interaction.user.id,data); await interaction.response.send_message(embed=embed)
 
+@client.tree.command(name="debug_bdd", description="🔍 Diagnostiquer les connexions BDD (Admin)")
+@app_commands.checks.has_permissions(administrator=True)
+async def debug_bdd(interaction: discord.Interaction):
+    """Affiche l'état des connexions BDD pour diagnostiquer les problèmes."""
+    embed = discord.Embed(title="🔍 Diagnostic Connexions BDD", color=0x5865F2)
+    
+    # Variables d'environnement
+    env_status = []
+    env_status.append(f"**AIVEN_DATABASE_URL:** {'✅ Définie' if os.getenv('AIVEN_DATABASE_URL') else '❌ Manquante'}")
+    env_status.append(f"**DATABASE_URL_AIVEN:** {'✅ Définie' if os.getenv('DATABASE_URL_AIVEN') else '❌ Manquante'}")
+    env_status.append(f"**AIVEN_URL:** {'✅ Définie' if os.getenv('AIVEN_URL') else '❌ Manquante'}")
+    env_status.append(f"**DATABASE_URL (Neon):** {'✅ Définie' if os.getenv('DATABASE_URL') else '❌ Manquante'}")
+    embed.add_field(name="📋 Variables d'Environnement", value="\n".join(env_status), inline=False)
+    
+    # URL détectées
+    url_info = []
+    if AIVEN_URL:
+        url_info.append(f"**Aiven:** {AIVEN_URL[:40]}...")
+        url_info.append(f"Contient 'aivencloud': {'✅' if 'aivencloud' in AIVEN_URL else '❌'}")
+    else:
+        url_info.append("**Aiven:** ❌ Aucune URL détectée")
+    
+    if NEON_URL:
+        url_info.append(f"**Neon:** {NEON_URL[:40]}...")
+        url_info.append(f"Contient 'neon.tech': {'✅' if 'neon.tech' in NEON_URL else '❌'}")
+    else:
+        url_info.append("**Neon:** ❌ Aucune URL détectée")
+    embed.add_field(name="🔗 URLs Détectées", value="\n".join(url_info), inline=False)
+    
+    # État des connexions
+    conn_status = []
+    conn_status.append(f"**AIVEN:** {'🟢 Connectée' if USE_AIVEN else '❌ Non connectée'}")
+    if USE_AIVEN:
+        try:
+            feeds_count = len(get_rss_feeds())
+            market_count = len(get_market_items())
+            conn_status.append(f"  📰 Flux RSS: {feeds_count}")
+            conn_status.append(f"  🏪 Articles market: {market_count}")
+        except Exception as e:
+            conn_status.append(f"  ⚠️ Erreur lecture: {str(e)[:50]}")
+    
+    conn_status.append(f"**NEON:** {'🔵 Connectée' if USE_NEON else '❌ Non connectée'}")
+    if USE_NEON:
+        try:
+            templates = get_embed_templates()
+            conn_status.append(f"  📋 Templates: {len(templates)}")
+        except Exception as e:
+            conn_status.append(f"  ⚠️ Erreur lecture: {str(e)[:50]}")
+    
+    embed.add_field(name="🔌 État Connexions", value="\n".join(conn_status), inline=False)
+    
+    # Test fonctions
+    test_results = []
+    if USE_AIVEN:
+        # Test add_rss_feed
+        success, msg = add_rss_feed("https://test.example.com/rss", "Test", None, interaction.user.id)
+        test_results.append(f"**add_rss_feed:** {'❌ '+msg if not success else '✅ Fonctionne'}")
+        
+        # Test get_market_items
+        try:
+            items = get_market_items()
+            test_results.append(f"**get_market_items:** ✅ {len(items)} items")
+        except Exception as e:
+            test_results.append(f"**get_market_items:** ❌ {str(e)[:40]}")
+    else:
+        test_results.append("**Tests:** ⏭️ Skipped (Aiven non connectée)")
+    
+    embed.add_field(name="🧪 Tests Fonctions", value="\n".join(test_results), inline=False)
+    
+    # Recommandations
+    if not USE_AIVEN:
+        embed.add_field(name="💡 Solution", 
+            value="**Sur Render Dashboard:**\n1. Aller dans Environment\n2. Ajouter **AIVEN_DATABASE_URL**\n3. Copier l'URL depuis Aiven Console\n4. Sauvegarder (redémarrage auto)", 
+            inline=False)
+    
+    embed.set_footer(text=f"Ping: {round(interaction.client.latency*1000)}ms")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @client.tree.command(name="stats", description="📊 Stats du bot")
 async def stats(interaction: discord.Interaction):
     embed=discord.Embed(title="📊 Statistiques",color=0x5865F2)
@@ -1252,9 +1336,25 @@ async def stats(interaction: discord.Interaction):
 # ====================================================
 
 if __name__ == "__main__":
+    logger.info("=" * 60)
     logger.info("🚀 Démarrage Syntia.AI Bot V2 FINAL...")
-    logger.info("🟢 Init AIVEN (economy/levels/rss/market)...")
+    logger.info("=" * 60)
+    
+    # Logger toutes les variables d'environnement BDD
+    logger.info("🔍 Recherche variables d'environnement BDD:")
+    for var_name in ["AIVEN_DATABASE_URL", "DATABASE_URL_AIVEN", "AIVEN_URL", "DATABASE_URL"]:
+        var_value = os.getenv(var_name)
+        if var_value:
+            logger.info(f"   ✅ {var_name}: {var_value[:30]}...")
+        else:
+            logger.info(f"   ❌ {var_name}: Non définie")
+    
+    logger.info("")
+    logger.info("🟢 Connexion AIVEN (economy/levels/rss/market)...")
     init_aiven()
-    logger.info("🔵 Init NEON (templates/cache/config)...")
+    logger.info("")
+    logger.info("🔵 Connexion NEON (templates/cache/config)...")
     init_neon()
+    logger.info("=" * 60)
+    
     client.run(DISCORD_TOKEN)
