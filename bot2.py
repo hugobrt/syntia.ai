@@ -3,7 +3,6 @@ SYNTIA.AI
 =========
 BOT 
 # made with ❤️
-
 """
 
 import discord
@@ -56,7 +55,11 @@ def init_aiven():
     """Aiven: economy, levels, rss, market - TOUJOURS ALLUMÉ."""
     global USE_AIVEN, aiven_pool
     if not AIVEN_URL:
-        logger.warning("AIVEN_DATABASE_URL manquante")
+        logger.error("=" * 60)
+        logger.error("AIVEN_DATABASE_URL manquante dans les variables d'environnement !")
+        logger.error("RSS et Market ne fonctionneront PAS sans cette variable.")
+        logger.error("Ajoute AIVEN_DATABASE_URL sur Render Dashboard > Environment")
+        logger.error("=" * 60)
         return False
     try:
         import psycopg2
@@ -426,7 +429,7 @@ def add_rss_feed(url: str, title: str = None, channel_id: int = None, user_id: i
             logger.error(f"add_rss_feed error: {e}")
             put_aiven(conn)
             return False, f"Erreur BDD: {str(e)[:100]}"
-    return False, "Base de données non connectée"
+    return False, "BDD Aiven non connectée ! Configure AIVEN_DATABASE_URL sur Render"
 
 def remove_rss_feed(feed_id: int) -> bool:
     conn = get_aiven()
@@ -522,7 +525,7 @@ def add_market_item(name: str, description: str, price: int, emoji: str, categor
             logger.error(f"add_market_item error: {e}")
             put_aiven(conn)
             return False, str(e)
-    return False, "BDD non connectée"
+    return False, "BDD Aiven non connectée ! Configure AIVEN_DATABASE_URL sur Render"
 
 def remove_market_item(item_id: int) -> bool:
     conn = get_aiven()
@@ -837,9 +840,17 @@ async def veille_rss():
 async def on_ready():
     logger.info("=" * 60)
     logger.info(f"✅ Bot: {client.user.name}")
-    logger.info(f"🟢 AIVEN (economy/levels/rss/market): {'✅' if USE_AIVEN else '❌'}")
-    logger.info(f"🔵 NEON (templates/cache/config): {'✅' if USE_NEON else '❌'}")
-    logger.info(f"📰 Flux RSS actifs: {len(get_rss_feeds())}")
+    if USE_AIVEN:
+        logger.info(f"🟢 AIVEN connectée (economy/levels/rss/market)")
+        logger.info(f"   📰 Flux RSS: {len(get_rss_feeds())}")
+        logger.info(f"   🏪 Articles market: {len(get_market_items())}")
+    else:
+        logger.error(f"❌ AIVEN NON CONNECTÉE - RSS et Market ne fonctionnent PAS")
+        logger.error(f"   Ajoute AIVEN_DATABASE_URL dans Render Environment")
+    if USE_NEON:
+        logger.info(f"🔵 NEON connectée (templates/cache/config)")
+    else:
+        logger.warning(f"⚠️  NEON non connectée - Templates en mémoire uniquement")
     logger.info("=" * 60)
     if not veille_rss.is_running():
         veille_rss.start()
