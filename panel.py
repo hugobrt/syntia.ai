@@ -1,5 +1,5 @@
 """
-INFINITY PANEL V46 
+INFINITY PANEL V46 ULTIMATE FINAL
 made with love
 """
 
@@ -1097,7 +1097,7 @@ class RemindersView(discord.ui.View):
 class MainPanelView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
 
-    # LIGNE 0: ADMIN TOOLS
+    # ROW 0: ADMIN (max 5)
     @discord.ui.button(label="Config", style=discord.ButtonStyle.primary, row=0, emoji="⚙️", custom_id="panel_config")
     async def config(self, i, b):
         await i.response.send_message(embed=discord.Embed(title="Configuration Serveur", color=0x5865F2), view=ConfigView(), ephemeral=True)
@@ -1105,13 +1105,6 @@ class MainPanelView(discord.ui.View):
     @discord.ui.button(label="RSS", style=discord.ButtonStyle.primary, row=0, emoji="📰", custom_id="panel_rss")
     async def rss(self, i, b):
         await i.response.send_message(embed=discord.Embed(title="Gestion RSS", color=0x0055ff), view=RSSView(), ephemeral=True)
-
-    @discord.ui.button(label="Market Admin", style=discord.ButtonStyle.primary, row=0, emoji="🏪", custom_id="panel_market_admin")
-    async def market_admin(self, i, b):
-        if not i.user.guild_permissions.administrator:
-            await i.response.send_message("Admin requis !", ephemeral=True); return
-        await i.response.send_message(embed=discord.Embed(title="Market Admin", color=0xFFD700,
-            description="Gere les articles du marche"), view=MarketAdminView(), ephemeral=True)
 
     @discord.ui.button(label="Backup", style=discord.ButtonStyle.primary, row=0, emoji="💾", custom_id="panel_backup")
     async def backup(self, i, b):
@@ -1125,7 +1118,7 @@ class MainPanelView(discord.ui.View):
     async def reminders(self, i, b):
         await i.response.send_message(embed=discord.Embed(title="Rappels", color=0x5865F2), view=RemindersView(), ephemeral=True)
 
-    # LIGNE 1: CREATION
+    # ROW 1: CREATION + MARKET ADMIN (max 5)
     @discord.ui.button(label="Embed Creator", style=discord.ButtonStyle.primary, row=1, emoji="🎨", custom_id="panel_embed")
     async def embed_creator(self, i, b):
         await i.response.send_message("Dans quel salon ?", view=ChanSel("embed"), ephemeral=True)
@@ -1138,6 +1131,13 @@ class MainPanelView(discord.ui.View):
     async def poll(self, i, b):
         await i.response.send_message("Dans quel salon ?", view=ChanSel("poll"), ephemeral=True)
 
+    @discord.ui.button(label="Market Admin", style=discord.ButtonStyle.success, row=1, emoji="🏪", custom_id="panel_market_admin")
+    async def market_admin(self, i, b):
+        if not i.user.guild_permissions.administrator:
+            await i.response.send_message("Admin requis !", ephemeral=True); return
+        await i.response.send_message(embed=discord.Embed(title="Market Admin", color=0xFFD700,
+            description="Gere les articles du marche"), view=MarketAdminView(), ephemeral=True)
+
     @discord.ui.button(label="Gestion Bot", style=discord.ButtonStyle.danger, row=1, emoji="🤖", custom_id="panel_botgestion")
     async def botgestion(self, i, b):
         if BotControlView:
@@ -1145,7 +1145,7 @@ class MainPanelView(discord.ui.View):
         else:
             await i.response.send_message("Module bot_gestion manquant.", ephemeral=True)
 
-    # LIGNE 2: UTILITAIRES SALONS
+    # ROW 2: UTILITAIRES SALONS (max 5)
     @discord.ui.button(label="Clear", style=discord.ButtonStyle.secondary, row=2, emoji="🧹", custom_id="panel_clear")
     async def clear(self, i, b):
         await i.response.send_message("Dans quel salon ?", view=ChanSel("clear"), ephemeral=True)
@@ -1162,7 +1162,7 @@ class MainPanelView(discord.ui.View):
     async def lock(self, i, b):
         await i.response.send_message("Quel salon ?", view=ChanSel("lock"), ephemeral=True)
 
-    # LIGNE 3: MODERATION
+    # ROW 3: MODERATION (max 5)
     @discord.ui.button(label="Warn", style=discord.ButtonStyle.secondary, row=3, emoji="⚠️", custom_id="panel_warn")
     async def warn(self, i, b):
         await i.response.send_message("Qui avertir ?", view=UserSel("warn"), ephemeral=True)
