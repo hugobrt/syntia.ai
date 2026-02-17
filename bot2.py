@@ -1243,6 +1243,199 @@ async def dice(interaction: discord.Interaction, mise: int):
     else: embed=discord.Embed(title="🎲 Dés",description=f"Toi: **{pr}** | Bot: **{br}**\n\nÉgalité !",color=0xFEE75C)
     update_economy(interaction.user.id,data); await interaction.response.send_message(embed=embed)
 
+
+@client.tree.command(name="init_tables", description="🔧 Créer les tables BDD (Admin uniquement)")
+@app_commands.checks.has_permissions(administrator=True)
+async def init_tables(interaction: discord.Interaction):
+    """Force la création de toutes les tables sur Aiven et Neon."""
+    await interaction.response.defer(ephemeral=True)
+    
+    results = []
+    
+    # AIVEN TABLES
+    results.append("**🟢 AIVEN (economy/levels/rss/market):**")
+    if not USE_AIVEN:
+        results.append("❌ Aiven non connectée - Configure AIVEN_DATABASE_URL d'abord")
+    else:
+        conn = get_aiven()
+        if conn:
+            try:
+                cur = conn.cursor()
+                
+                # Economy
+                cur.execute("""CREATE TABLE IF NOT EXISTS economy (
+                    user_id BIGINT PRIMARY KEY,
+                    coins BIGINT DEFAULT 0,
+                    bank BIGINT DEFAULT 0,
+                    last_daily TIMESTAMP,
+                    last_work TIMESTAMP,
+                    total_earned BIGINT DEFAULT 0,
+                    total_spent BIGINT DEFAULT 0,
+                    transfer_today BIGINT DEFAULT 0,
+                    transfer_date DATE DEFAULT CURRENT_DATE
+                )""")
+                results.append("✅ Table `economy` créée")
+                
+                # Levels
+                cur.execute("""CREATE TABLE IF NOT EXISTS levels (
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    xp INTEGER DEFAULT 0,
+                    level INTEGER DEFAULT 1,
+                    messages INTEGER DEFAULT 0,
+                    last_xp TIMESTAMP,
+                    PRIMARY KEY (user_id, guild_id)
+                )""")
+                results.append("✅ Table `levels` créée")
+                
+                # RSS Feeds
+                cur.execute("""CREATE TABLE IF NOT EXISTS rss_feeds (
+                    id SERIAL PRIMARY KEY,
+                    url TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    channel_id BIGINT,
+                    added_by BIGINT,
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_check TIMESTAMP,
+                    last_link TEXT,
+                    active BOOLEAN DEFAULT TRUE
+                )""")
+                results.append("✅ Table `rss_feeds` créée")
+                
+                # Market Items
+                cur.execute("""CREATE TABLE IF NOT EXISTS market_items (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    price BIGINT NOT NULL,
+                    emoji TEXT DEFAULT '📦',
+                    category TEXT DEFAULT 'général',
+                    stock INTEGER DEFAULT -1,
+                    added_by BIGINT,
+                    active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                results.append("✅ Table `market_items` créée")
+                
+                # User Inventory
+                cur.execute("""CREATE TABLE IF NOT EXISTS user_inventory (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    item_id INTEGER NOT NULL,
+                    item_name TEXT,
+                    quantity INTEGER DEFAULT 1,
+                    purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                results.append("✅ Table `user_inventory` créée")
+                
+                conn.commit()
+                cur.close()
+                put_aiven(conn)
+                results.append("🎉 Toutes les tables Aiven créées avec succès !")
+                
+            except Exception as e:
+                results.append(f"❌ Erreur: {str(e)[:200]}")
+                put_aiven(conn)
+        else:
+            results.append("❌ Impossible de se connecter à Aiven")
+    
+    results.append("")
+    
+    # NEON TABLES
+    results.append("**🔵 NEON (templates/cache/config):**")
+    if not USE_NEON:
+        results.append("⚠️ Neon non connectée - pas critique")
+    else:
+        conn = get_neon()
+        if conn:
+            try:
+                cur = conn.cursor()
+                
+                # Embed Templates
+                cur.execute("""CREATE TABLE IF NOT EXISTS embed_templates (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    description TEXT,
+                    color TEXT DEFAULT '2b2d31',
+                    footer TEXT,
+                    image_url TEXT,
+                    thumbnail_url TEXT,
+                    author_name TEXT,
+                    fields_json TEXT DEFAULT '[]',
+                    created_by BIGINT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                results.append("✅ Table `embed_templates` créée")
+                
+                # AI Cache
+                cur.execute("""CREATE TABLE IF NOT EXISTS ai_cache (
+                    prompt_hash TEXT PRIMARY KEY,
+                    response TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                results.append("✅ Table `ai_cache` créée")
+                
+                # Server Config
+                cur.execute("""CREATE TABLE IF NOT EXISTS server_config (
+                    guild_id BIGINT PRIMARY KEY,
+                    ticket_category BIGINT,
+                    suggestions_channel BIGINT,
+                    logs_channel BIGINT,
+                    welcome_channel BIGINT,
+                    goodbye_channel BIGINT,
+                    level_up_channel BIGINT,
+                    xp_per_message INTEGER DEFAULT 15
+                )""")
+                results.append("✅ Table `server_config` créée")
+                
+                # Transactions
+                cur.execute("""CREATE TABLE IF NOT EXISTS transactions (
+                    id SERIAL PRIMARY KEY,
+                    from_user BIGINT,
+                    to_user BIGINT,
+                    amount BIGINT,
+                    type TEXT,
+                    description TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                results.append("✅ Table `transactions` créée")
+                
+                # Insérer templates par défaut
+                cur.execute("SELECT COUNT(*) FROM embed_templates")
+                count = cur.fetchone()[0]
+                if count == 0:
+                    default_templates = [
+                        ("bienvenue", "👋 Bienvenue !", "Bienvenue sur le serveur !", "57F287", "Bon séjour !", None, None, None, "[]"),
+                        ("annonce", "📢 Annonce", "Votre annonce ici...", "5865F2", None, None, None, None, "[]"),
+                        ("regles", "📜 Règlement", "Respectez les règles suivantes:", "ED4245", None, None, None, None, "[]"),
+                    ]
+                    cur.executemany("""INSERT INTO embed_templates 
+                        (name, title, description, color, footer, image_url, thumbnail_url, author_name, fields_json)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (name) DO NOTHING""", default_templates)
+                    results.append("✅ Templates par défaut insérés")
+                
+                conn.commit()
+                cur.close()
+                put_neon(conn)
+                results.append("🎉 Toutes les tables Neon créées avec succès !")
+                
+            except Exception as e:
+                results.append(f"❌ Erreur: {str(e)[:200]}")
+                put_neon(conn)
+        else:
+            results.append("❌ Impossible de se connecter à Neon")
+    
+    embed = discord.Embed(
+        title="🔧 Initialisation Tables BDD",
+        description="\n".join(results),
+        color=0x57F287 if "Erreur" not in "\n".join(results) else 0xED4245
+    )
+    embed.set_footer(text="Relance /debug_bdd pour vérifier")
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
 @client.tree.command(name="debug_bdd", description="🔍 Diagnostiquer les connexions BDD (Admin)")
 @app_commands.checks.has_permissions(administrator=True)
 async def debug_bdd(interaction: discord.Interaction):
