@@ -20,6 +20,7 @@ import os
 from typing import List, Dict, Optional
 import logging
 import random
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)-8s | %(message)s')
 logger = logging.getLogger('BotGestion')
@@ -328,13 +329,21 @@ class RotationConfigModal(discord.ui.Modal, title="🔄 Config Rotation"):
                 return
             status_rotation.set_interval(minutes)
             status_rotation.set_theme(theme)
+            # Redémarrer le task avec le nouvel intervalle
             if rotate_status.is_running():
                 rotate_status.cancel()
+                await asyncio.sleep(1)  # Attendre que le task s'arrête
             rotate_status.change_interval(minutes=minutes)
             if _bot_instance:
                 rotate_status.start(_bot_instance)
-                logger.info(f"✅ Task rotation redémarré avec intervalle {minutes}min")
-            await i.response.send_message(f"✅ Rotation configurée !\n⏱️ Intervalle: **{minutes}** min\n🎨 Thème: **{theme}**\n\n💡 Le prochain changement aura lieu dans {minutes} minutes !", ephemeral=True)
+                logger.info(f"✅ Task rotation redémarré: {minutes}min, thème {theme}")
+            await i.response.send_message(
+                f"✅ Rotation configurée !\n"
+                f"⏱️ Intervalle: **{minutes}** min\n"
+                f"🎨 Thème: **{theme}**\n\n"
+                f"💡 Prochain changement dans **{minutes}** minutes !",
+                ephemeral=True
+            )
         except ValueError:
             await i.response.send_message("❌ Intervalle invalide !", ephemeral=True)
 
@@ -537,13 +546,22 @@ async def check_scheduled_statuses(bot):
 
 @tasks.loop(minutes=5)
 async def rotate_status(bot):
-    """Rotation automatique des statuts."""
+    """Rotation automatique des statuts - recharge config depuis JSON."""
     try:
+        # IMPORTANT: Recharger le config depuis le fichier à chaque exécution
+        # pour voir les changements faits via les boutons !
+        fresh_config = load_json(STATUS_ROTATION_FILE, None)
+        if fresh_config:
+            status_rotation.config = fresh_config
+
         if not status_rotation.is_enabled():
+            logger.info("⏸️ Rotation désactivée - skip")
             return
+
         status = status_rotation.get_next_status()
         if not status:
             return
+
         if status['type'] == 'playing':
             activity = discord.Game(name=status['text'])
         elif status['type'] == 'watching':
@@ -552,6 +570,7 @@ async def rotate_status(bot):
             activity = discord.Activity(type=discord.ActivityType.listening, name=status['text'])
         else:
             return
+
         await bot.change_presence(activity=activity)
         logger.info(f"🔄 Rotation: {status['text']}")
     except Exception as e:
