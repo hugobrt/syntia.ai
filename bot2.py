@@ -69,7 +69,7 @@ def init_aiven():
     try:
         import psycopg2
         from psycopg2 import pool as pg_pool
-        aiven_pool = pg_pool.SimpleConnectionPool(5, 30, dsn=AIVEN_URL, sslmode='require', connect_timeout=10)
+        aiven_pool = pg_pool.SimpleConnectionPool(2, 20, AIVEN_URL)
         conn = aiven_pool.getconn()
         cur = conn.cursor()
 
@@ -149,7 +149,7 @@ def init_neon():
     try:
         import psycopg2
         from psycopg2 import pool as pg_pool
-        neon_pool = pg_pool.SimpleConnectionPool(1, 10, dsn=NEON_URL, sslmode='require')
+        neon_pool = pg_pool.SimpleConnectionPool(1, 10, NEON_URL)
         conn = neon_pool.getconn()
         cur = conn.cursor()
 
@@ -230,9 +230,15 @@ def init_neon():
 # ====================================================
 
 def get_aiven():
+    global USE_AIVEN
     if not USE_AIVEN:
-        logger.error("get_aiven: USE_AIVEN est False")
-        return None
+        logger.warning("get_aiven: USE_AIVEN est False - tentative reconnexion...")
+        # Tenter de réinitialiser si possible
+        if AIVEN_URL and not aiven_pool:
+            init_aiven()
+        if not USE_AIVEN:
+            logger.error("get_aiven: Reconnexion échouée")
+            return None
     if not aiven_pool:
         logger.error("get_aiven: aiven_pool est None")
         return None
@@ -245,8 +251,6 @@ def get_aiven():
             return None
     except Exception as e:
         logger.error(f"get_aiven error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
         return None
 
 def put_aiven(conn):
@@ -396,7 +400,7 @@ def update_level(user_id: int, guild_id: int, data: dict):
             put_aiven(conn)
 
 # ====================================================
-# RSS (AIVEN) - CORRIGÉ
+# RSS (AIVEN) - coorection effectué 18/02
 # ====================================================
 
 def get_rss_feeds() -> list:
@@ -875,16 +879,16 @@ async def on_ready():
     logger.info("=" * 60)
     logger.info(f"✅ Bot: {client.user.name}")
     if USE_AIVEN:
-        logger.info(f"🟢 AIVEN connectée (economy/levels/rss/market)")
+        logger.info(f"🟢 AIVEN BDD syntia-DB connecté")
         logger.info(f"   📰 Flux RSS: {len(get_rss_feeds())}")
         logger.info(f"   🏪 Articles market: {len(get_market_items())}")
     else:
-        logger.error(f"❌ AIVEN NON CONNECTÉE - RSS et Market ne fonctionnent PAS")
-        logger.error(f"   Ajoute AIVEN_DATABASE_URL dans Render Environment")
+        logger.error(f"❌ AIVEN NON CONNECTÉE ")
+        logger.error(f"   AIVEN_DATABASE_URL non config dans l'nevironement")
     if USE_NEON:
-        logger.info(f"🔵 NEON connectée (templates/cache/config)")
+        logger.info(f"🔵 NEON BDD syntia-DB connecté")
     else:
-        logger.warning(f"⚠️  NEON non connectée - Templates en mémoire uniquement")
+        logger.warning(f"⚠️  NEON non connectée")
     logger.info("=" * 60)
     if not veille_rss.is_running():
         veille_rss.start()
@@ -1849,11 +1853,11 @@ async def stats(interaction: discord.Interaction):
 
 if __name__ == "__main__":
     logger.info("=" * 60)
-    logger.info("🚀 Démarrage Syntia.AI Bot V2 FINAL...")
+    logger.info("🚀 BOOTING Syntia.AI")
     logger.info("=" * 60)
     
     # Logger toutes les variables d'environnement BDD
-    logger.info("🔍 Recherche variables d'environnement BDD:")
+    logger.info("🔍 Searching DB environement name")
     for var_name in ["AIVEN_DATABASE_URL", "DATABASE_URL_AIVEN", "AIVEN_URL", "DATABASE_URL"]:
         var_value = os.getenv(var_name)
         if var_value:
@@ -1862,11 +1866,13 @@ if __name__ == "__main__":
             logger.info(f"   ❌ {var_name}: Non définie")
     
     logger.info("")
-    logger.info("🟢 Connexion AIVEN (economy/levels/rss/market)...")
-    init_aiven()
+    logger.info("🟢 Connexion AIVEN Syntia-db")
+    aiven_ok = init_aiven()
+    logger.info(f"Résultat init_aiven: {aiven_ok} | USE_AIVEN: {USE_AIVEN}")
     logger.info("")
-    logger.info("🔵 Connexion NEON (templates/cache/config)...")
-    init_neon()
+    logger.info("🔵 Connexion NEON Syntia-db")
+    neon_ok = init_neon()
+    logger.info(f"Résultat init_neon: {neon_ok} | USE_NEON: {USE_NEON}")
     logger.info("=" * 60)
     
     client.run(DISCORD_TOKEN)
