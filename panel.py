@@ -1,6 +1,7 @@
 """
 INFINITY PANEL V46 ULTIMATE FINAL
 made with love
+Version: 18/02
 """
 
 import discord
@@ -108,19 +109,21 @@ try:
     logger.info("RSS: Mode PostgreSQL")
 except:
     USE_RSS_DB = False
+    logger.warning("RSS: Mode JSON fallback (bot2 non importé)")
     def get_rss_feeds():
         return load_json(RSS_FILE, [])
-    def add_rss_feed(url, title=None, user_id=None):
+    def add_rss_feed(url, title=None, channel_id=None, user_id=None):
         feeds = get_rss_feeds()
         if url not in feeds:
             feeds.append(url)
             save_json(RSS_FILE, feeds)
-            return True
-        return False
-    def remove_rss_feed(url):
+            return True, title or url
+        return False, "Existe déjà"
+    def remove_rss_feed(feed_id):
+        # En mode JSON, feed_id est l'URL
         feeds = get_rss_feeds()
-        if url in feeds:
-            feeds.remove(url)
+        if feed_id in feeds:
+            feeds.remove(feed_id)
             save_json(RSS_FILE, feeds)
             return True
         return False
@@ -601,29 +604,22 @@ class RSSAddModal(discord.ui.Modal, title="Ajouter Flux RSS"):
         url = self.url_input.value.strip()
         title = self.title_input.value.strip() or None
         if not url.startswith(("http://", "https://")):
-            await i.followup.send("URL doit commencer par http:// ou https://", ephemeral=True)
+            await i.followup.send("❌ URL doit commencer par http:// ou https://", ephemeral=True)
             return
-        try:
-            import feedparser as fp
-            feed = fp.parse(url)
-            if not feed.entries:
-                await i.followup.send("Flux RSS invalide ou inaccessible !", ephemeral=True)
-                return
-            feed_title = title or feed.feed.get("title", url)[:100]
-        except Exception as e:
-            await i.followup.send(f"Erreur: {str(e)[:100]}", ephemeral=True)
-            return
+        
+        feed_title = title or url.split('/')[2] if '/' in url else url
+        
         try:
             from bot2 import add_rss_feed as bot_add
             success, result = bot_add(url, feed_title, None, i.user.id)
         except ImportError:
-            success = add_rss_feed(url, feed_title, i.user.id)
-            result = feed_title if success else "Erreur ou flux deja existant"
+            success, result = add_rss_feed(url, feed_title, None, i.user.id)
+        
         if success:
-            await i.followup.send(f"Flux RSS ajoute !\nTitre: {feed_title}\nURL: {url[:80]}", ephemeral=True)
+            await i.followup.send(f"✅ Flux RSS ajouté !\n**Titre:** {result}\n**URL:** {url[:80]}", ephemeral=True)
             log_admin_action(i.user.id, "rss_add", url)
         else:
-            await i.followup.send(f"Erreur: {result}", ephemeral=True)
+            await i.followup.send(f"❌ Erreur: {result}", ephemeral=True)
 
 class ConfigTicketModal(discord.ui.Modal, title="Config Tickets"):
     category_id = discord.ui.TextInput(label="ID de la categorie tickets", placeholder="Clic droit sur categorie > Copier l'ID", max_length=20)
@@ -1242,7 +1238,7 @@ async def check_reminders(bot):
 class AdminPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        logger.info("AdminPanel V46 ULTIMATE FINAL initialise")
+        logger.info("AdminPanel V46 initialise")
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -1259,7 +1255,7 @@ class AdminPanel(commands.Cog):
             check_reminders.start(self.bot)
             logger.info("Task rappels demarre")
 
-        logger.info("INFINITY PANEL V46 ULTIMATE FINAL - READY")
+        logger.info("INFINITY PANEL V46 - READY")
 
     @commands.Cog.listener()
     async def on_interaction(self, i: discord.Interaction):
@@ -1293,14 +1289,8 @@ class AdminPanel(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_panel(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title="INFINITY PANEL V46 ULTIMATE FINAL",
-            description="**Panel ultra-complet avec TOUT !**\n\n"
-                       "**V46 FINAL:**\n"
-                       "- Tous les boutons sont persistants (custom_id)\n"
-                       "- V42: Reminders, Backup, Logs detailles\n"
-                       "- V43: Config serveur, RSS PostgreSQL\n"
-                       "- V44: Embed Creator ULTIME, Info User COMPLET\n"
-                       "- V45: Templates, Export JSON, Duplication",
+            title="INFINITY PANEL V46",
+            description="**PANEL ADMIN**\n\n",
             color=0x2b2d31,
             timestamp=datetime.now()
         )
@@ -1309,4 +1299,4 @@ class AdminPanel(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(AdminPanel(bot))
-    logger.info("AdminPanel V46 ULTIMATE FINAL charge")
+    logger.info("Panel OK")
