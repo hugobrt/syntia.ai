@@ -69,7 +69,7 @@ def init_aiven():
     try:
         import psycopg2
         from psycopg2 import pool as pg_pool
-        aiven_pool = pg_pool.SimpleConnectionPool(2, 20, dsn=AIVEN_URL, sslmode='require')
+        aiven_pool = pg_pool.SimpleConnectionPool(5, 30, dsn=AIVEN_URL, sslmode='require', connect_timeout=10)
         conn = aiven_pool.getconn()
         cur = conn.cursor()
 
@@ -230,10 +230,24 @@ def init_neon():
 # ====================================================
 
 def get_aiven():
-    if USE_AIVEN and aiven_pool:
-        try: return aiven_pool.getconn()
-        except Exception as e: logger.error(f"get_aiven error: {e}")
-    return None
+    if not USE_AIVEN:
+        logger.error("get_aiven: USE_AIVEN est False")
+        return None
+    if not aiven_pool:
+        logger.error("get_aiven: aiven_pool est None")
+        return None
+    try:
+        conn = aiven_pool.getconn()
+        if conn:
+            return conn
+        else:
+            logger.error("get_aiven: getconn() a retourné None")
+            return None
+    except Exception as e:
+        logger.error(f"get_aiven error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
 
 def put_aiven(conn):
     if USE_AIVEN and aiven_pool and conn:
@@ -403,22 +417,33 @@ def get_rss_feeds() -> list:
 
 def add_rss_feed(url: str, title: str = None, channel_id: int = None, user_id: int = None) -> tuple:
     """Retourne (success, message)."""
+    logger.info(f"add_rss_feed appelé: url={url[:50]}, title={title}")
+    
     # Valider l'URL d'abord
     url = url.strip()
     if not url.startswith(('http://', 'https://')):
+        logger.warning("URL rejetée: ne commence pas par http/https")
         return False, "L'URL doit commencer par http:// ou https://"
     
     # Tester si le flux est valide
     try:
+        logger.info("Test feedparser...")
         feed = feedparser.parse(url)
+        logger.info(f"feedparser résultat: bozo={feed.bozo}, entries={len(feed.entries)}")
         if feed.bozo and not feed.entries:
+            logger.warning("Flux rejeté: bozo=True et pas d'entries")
             return False, "URL invalide ou flux RSS inaccessible"
         feed_title = title or feed.feed.get('title', url)
+        logger.info(f"Flux valide, titre: {feed_title}")
     except Exception as e:
+        logger.error(f"Erreur feedparser: {e}")
+        logger.error(traceback.format_exc())
         return False, f"Erreur lors du test du flux: {str(e)[:100]}"
     
+    logger.info("Tentative get_aiven()...")
     conn = get_aiven()
     if conn:
+        logger.info("Connexion obtenue, tentative INSERT...")
         try:
             cur = conn.cursor()
             cur.execute("""INSERT INTO rss_feeds (url, title, channel_id, added_by)
@@ -430,11 +455,14 @@ def add_rss_feed(url: str, title: str = None, channel_id: int = None, user_id: i
             conn.commit()
             cur.close()
             put_aiven(conn)
+            logger.info(f"RSS ajouté avec succès, ID: {result[0]}")
             return True, feed_title
         except Exception as e:
-            logger.error(f"add_rss_feed error: {e}")
+            logger.error(f"add_rss_feed error BDD: {e}")
+            logger.error(traceback.format_exc())
             put_aiven(conn)
             return False, f"Erreur BDD: {str(e)[:100]}"
+    logger.error("get_aiven() a retourné None - BDD non connectée")
     return False, "BDD Aiven non connectée ! Configure AIVEN_DATABASE_URL sur Render"
 
 def remove_rss_feed(feed_id: int) -> bool:
@@ -1243,6 +1271,297 @@ async def dice(interaction: discord.Interaction, mise: int):
     else: embed=discord.Embed(title="🎲 Dés",description=f"Toi: **{pr}** | Bot: **{br}**\n\nÉgalité !",color=0xFEE75C)
     update_economy(interaction.user.id,data); await interaction.response.send_message(embed=embed)
 
+
+
+@client.tree.command(name="test_bdd_write", description="🧪 Test d'écriture BDD complet")
+@app_commands.checks.has_permissions(administrator=True)
+async def test_bdd_write(interaction: discord.Interaction):
+    """Test vraiment complet d'écriture dans Aiven."""
+    await interaction.response.defer(ephemeral=True)
+    
+    results = []
+    results.append("🧪 **TEST COMPLET ÉCRITURE BDD**")
+    results.append("")
+    
+    # 1. État des variables globales
+    results.append("**1️⃣ Variables globales:**")
+    results.append(f"USE_AIVEN = {USE_AIVEN}")
+    results.append(f"aiven_pool exists = {aiven_pool is not None}")
+    results.append(f"AIVEN_URL exists = {AIVEN_URL is not None}")
+    if AIVEN_URL:
+        results.append(f"AIVEN_URL preview = {AIVEN_URL[:50]}...")
+    results.append("")
+    
+    # 2. Test get_aiven()
+    results.append("**2️⃣ Test get_aiven():**")
+    try:
+        test_conn = get_aiven()
+        if test_conn:
+            results.append("✅ get_aiven() retourne une connexion")
+            try:
+                # Test basique
+                cur = test_conn.cursor()
+                cur.execute("SELECT 1")
+                result = cur.fetchone()
+                cur.close()
+                results.append(f"✅ SELECT 1 = {result[0]}")
+            except Exception as e:
+                results.append(f"❌ Erreur SELECT: {str(e)[:100]}")
+            put_aiven(test_conn)
+        else:
+            results.append("❌ get_aiven() retourne None !")
+            results.append("   → Le pool est peut-être vide")
+    except Exception as e:
+        results.append(f"❌ Exception get_aiven: {str(e)[:100]}")
+    results.append("")
+    
+    # 3. Test des tables
+    results.append("**3️⃣ Vérification tables:**")
+    conn2 = get_aiven()
+    if conn2:
+        try:
+            cur = conn2.cursor()
+            cur.execute("""SELECT table_name FROM information_schema.tables 
+                WHERE table_schema='public' AND table_name IN 
+                ('economy','levels','rss_feeds','market_items','user_inventory')""")
+            tables = [row[0] for row in cur.fetchall()]
+            for t in ['economy','levels','rss_feeds','market_items','user_inventory']:
+                if t in tables:
+                    results.append(f"✅ Table {t} existe")
+                else:
+                    results.append(f"❌ Table {t} MANQUANTE")
+            cur.close()
+            put_aiven(conn2)
+        except Exception as e:
+            results.append(f"❌ Erreur vérif tables: {str(e)[:100]}")
+            put_aiven(conn2)
+    else:
+        results.append("❌ Pas de connexion disponible")
+    results.append("")
+    
+    # 4. Test d'écriture RSS
+    results.append("**4️⃣ Test add_rss_feed (vraie URL):**")
+    test_url = "https://www.lemonde.fr/rss/une.xml"
+    try:
+        success, msg = add_rss_feed(test_url, "Test Le Monde", None, interaction.user.id)
+        if success:
+            results.append(f"✅ add_rss_feed réussi: {msg}")
+            # Vérifier qu'il est vraiment en BDD
+            feeds = get_rss_feeds()
+            found = any(f.get('url') == test_url for f in feeds)
+            results.append(f"✅ Flux trouvé en BDD: {found}")
+        else:
+            results.append(f"❌ add_rss_feed échoué: {msg}")
+    except Exception as e:
+        results.append(f"❌ Exception: {str(e)[:150]}")
+    results.append("")
+    
+    # 5. Test d'écriture Market
+    results.append("**5️⃣ Test add_market_item:**")
+    try:
+        success, result = add_market_item("Test Item", "Item de test", 100, "🧪", "test", -1, interaction.user.id)
+        if success:
+            results.append(f"✅ add_market_item réussi: ID {result}")
+            # Vérifier qu'il est en BDD
+            items = get_market_items(active_only=False)
+            found = any(i.get('name') == 'Test Item' for i in items)
+            results.append(f"✅ Item trouvé en BDD: {found}")
+        else:
+            results.append(f"❌ add_market_item échoué: {result}")
+    except Exception as e:
+        results.append(f"❌ Exception: {str(e)[:150]}")
+    results.append("")
+    
+    # 6. État du pool
+    results.append("**6️⃣ État du pool de connexions:**")
+    if aiven_pool:
+        try:
+            # Infos sur le pool (psycopg2)
+            results.append(f"Pool minconn: {aiven_pool.minconn}")
+            results.append(f"Pool maxconn: {aiven_pool.maxconn}")
+            results.append(f"Pool closed: {aiven_pool.closed}")
+        except Exception as e:
+            results.append(f"Erreur infos pool: {str(e)[:100]}")
+    else:
+        results.append("❌ aiven_pool est None")
+    
+    embed = discord.Embed(
+        title="🧪 Test Écriture BDD - Résultats",
+        description="\n".join(results),
+        color=0x5865F2
+    )
+    embed.set_footer(text="Si tout est ✅ mais RSS ne marche pas, screenshot ce message")
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+
+@client.tree.command(name="force_add_rss", description="➕ Forcer ajout RSS (Admin)")
+@app_commands.checks.has_permissions(administrator=True)
+async def force_add_rss(interaction: discord.Interaction, url: str, titre: str = None):
+    """Ajoute un flux RSS SANS validation feedparser."""
+    await interaction.response.defer(ephemeral=True)
+    
+    if not url.startswith(('http://', 'https://')):
+        await interaction.followup.send("❌ URL doit commencer par http:// ou https://", ephemeral=True)
+        return
+    
+    conn = get_aiven()
+    if not conn:
+        await interaction.followup.send("❌ Aiven non connectée", ephemeral=True)
+        return
+    
+    try:
+        cur = conn.cursor()
+        feed_title = titre or url.split('/')[2]
+        cur.execute("""INSERT INTO rss_feeds (url, title, added_by, active, added_at)
+            VALUES (%s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+            ON CONFLICT (url) DO UPDATE SET active=TRUE
+            RETURNING id""",
+            (url, feed_title, interaction.user.id))
+        feed_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        put_aiven(conn)
+        
+        embed = discord.Embed(
+            title="✅ RSS Ajouté !",
+            description=f"**Titre:** {feed_title}\n**URL:** {url}\n**ID:** {feed_id}",
+            color=0x57F287
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        conn.rollback()
+        put_aiven(conn)
+        await interaction.followup.send(f"❌ Erreur: {str(e)[:200]}", ephemeral=True)
+
+@client.tree.command(name="force_add_market", description="➕ Forcer ajout Market (Admin)")
+@app_commands.checks.has_permissions(administrator=True)
+async def force_add_market(interaction: discord.Interaction, nom: str, prix: int, emoji: str = "📦", categorie: str = "general"):
+    """Ajoute un article market directement."""
+    await interaction.response.defer(ephemeral=True)
+    
+    conn = get_aiven()
+    if not conn:
+        await interaction.followup.send("❌ Aiven non connectée", ephemeral=True)
+        return
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""INSERT INTO market_items (name, description, price, emoji, category, stock, added_by, active)
+            VALUES (%s, %s, %s, %s, %s, -1, %s, TRUE)
+            RETURNING id""",
+            (nom, f"Article {nom}", prix, emoji, categorie, interaction.user.id))
+        item_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        put_aiven(conn)
+        
+        embed = discord.Embed(
+            title="✅ Article Market Ajouté !",
+            description=f"{emoji} **{nom}**\nPrix: {prix:,} coins\nCatégorie: {categorie}\nID: {item_id}",
+            color=0x57F287
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        conn.rollback()
+        put_aiven(conn)
+        await interaction.followup.send(f"❌ Erreur: {str(e)[:200]}", ephemeral=True)
+
+@client.tree.command(name="test_direct_bdd", description="🧪 Test direct BDD (Admin)")
+@app_commands.checks.has_permissions(administrator=True)
+async def test_direct_bdd(interaction: discord.Interaction):
+    """Test l'ajout direct en BDD sans validation."""
+    await interaction.response.defer(ephemeral=True)
+    
+    results = []
+    
+    # TEST 1: Ajouter un flux RSS directement
+    results.append("**📰 TEST RSS:**")
+    conn = get_aiven()
+    if not conn:
+        results.append("❌ Pas de connexion Aiven")
+    else:
+        try:
+            cur = conn.cursor()
+            test_url = f"https://test{random.randint(1000,9999)}.example.com/rss.xml"
+            cur.execute("""INSERT INTO rss_feeds (url, title, added_by, active) 
+                VALUES (%s, %s, %s, TRUE) RETURNING id""",
+                (test_url, "Test RSS Direct", interaction.user.id))
+            feed_id = cur.fetchone()[0]
+            conn.commit()
+            cur.close()
+            put_aiven(conn)
+            results.append(f"✅ Flux RSS ajouté ! ID: {feed_id}")
+            results.append(f"URL: {test_url}")
+            
+            # Vérifier qu'il existe
+            conn2 = get_aiven()
+            cur2 = conn2.cursor()
+            cur2.execute("SELECT COUNT(*) FROM rss_feeds WHERE id=%s", (feed_id,))
+            count = cur2.fetchone()[0]
+            cur2.close()
+            put_aiven(conn2)
+            results.append(f"✅ Vérification: {count} ligne trouvée")
+        except Exception as e:
+            results.append(f"❌ Erreur: {str(e)[:200]}")
+            conn.rollback()
+            put_aiven(conn)
+    
+    results.append("")
+    
+    # TEST 2: Ajouter un article market directement
+    results.append("**🏪 TEST MARKET:**")
+    conn = get_aiven()
+    if not conn:
+        results.append("❌ Pas de connexion Aiven")
+    else:
+        try:
+            cur = conn.cursor()
+            cur.execute("""INSERT INTO market_items (name, description, price, emoji, category, stock, added_by, active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE) RETURNING id""",
+                ("Test Direct", "Article de test", 1000, "🧪", "test", -1, interaction.user.id))
+            item_id = cur.fetchone()[0]
+            conn.commit()
+            cur.close()
+            put_aiven(conn)
+            results.append(f"✅ Article ajouté ! ID: {item_id}")
+            
+            # Vérifier qu'il existe
+            conn2 = get_aiven()
+            cur2 = conn2.cursor()
+            cur2.execute("SELECT name, price FROM market_items WHERE id=%s", (item_id,))
+            row = cur2.fetchone()
+            cur2.close()
+            put_aiven(conn2)
+            if row:
+                results.append(f"✅ Vérification: {row[0]} - {row[1]} coins")
+            else:
+                results.append("❌ Article non trouvé après insertion")
+        except Exception as e:
+            results.append(f"❌ Erreur: {str(e)[:200]}")
+            conn.rollback()
+            put_aiven(conn)
+    
+    results.append("")
+    
+    # TEST 3: Lire avec les fonctions normales
+    results.append("**📊 TEST LECTURE:**")
+    try:
+        feeds = get_rss_feeds()
+        results.append(f"get_rss_feeds(): {len(feeds)} flux")
+        
+        items = get_market_items()
+        results.append(f"get_market_items(): {len(items)} items")
+    except Exception as e:
+        results.append(f"❌ Erreur lecture: {str(e)[:100]}")
+    
+    embed = discord.Embed(
+        title="🧪 Test Direct BDD",
+        description="\n".join(results),
+        color=0x5865F2
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 @client.tree.command(name="init_tables", description="🔧 Créer les tables BDD (Admin uniquement)")
 @app_commands.checks.has_permissions(administrator=True)
