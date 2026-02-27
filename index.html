@@ -1,104 +1,137 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Syntia AI</title>
+    <title>403 | Forbidden Access</title>
     <style>
         :root {
             --bg: #000000;
-            --gold: #c5a059;
-            --gray: #1a1a1a;
-            --text-dim: #555;
+            --accent: #c5a059;
+            --text: #ffffff;
+            --dim: #444;
         }
 
         body {
-            margin: 0; padding: 0; background: var(--bg); color: #fff;
+            margin: 0; padding: 0; background: var(--bg); color: var(--text);
             font-family: 'Inter', -apple-system, sans-serif;
             display: flex; align-items: center; justify-content: center;
             height: 100vh; overflow: hidden;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
         }
 
-        .container {
-            text-align: center;
-            padding: 20px;
-            max-width: 500px;
+        .lang-switch {
+            position: fixed; top: 20px; right: 20px;
+            background: transparent; border: 1px solid var(--dim);
+            color: var(--dim); padding: 5px 12px; font-size: 0.7rem;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em;
+            transition: 0.3s;
         }
 
-        .brand {
-            font-size: 0.7rem;
-            letter-spacing: 0.8em;
-            text-transform: uppercase;
-            color: var(--gold);
-            margin-bottom: 60px;
-            font-weight: 300;
+        .lang-switch:hover { color: var(--accent); border-color: var(--accent); }
+
+        .vault-card {
+            text-align: center; position: relative; z-index: 10;
         }
 
-        .gate-title {
-            font-size: 1.5rem;
-            font-weight: 200;
-            letter-spacing: -0.01em;
-            margin-bottom: 50px;
-            color: #eee;
+        .glow-circle {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(197, 160, 89, 0.05) 0%, transparent 70%);
+            animation: pulse-glow 4s infinite ease-in-out;
+            z-index: -1;
         }
 
-        .divider {
-            width: 1px;
-            height: 80px;
-            background: linear-gradient(to bottom, var(--bg), var(--gold), var(--bg));
-            margin: 0 auto 50px auto;
+        h1 {
+            font-size: 8rem; font-weight: 200; margin: 0;
+            letter-spacing: -0.02em; color: var(--accent);
+            opacity: 0.9;
         }
 
-        .btn-access {
-            background: transparent;
-            color: #fff;
-            border: 1px solid var(--gray);
-            padding: 16px 40px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3em;
-            cursor: pointer;
-            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            border-radius: 2px;
+        .error-code {
+            font-size: 0.8rem; letter-spacing: 0.6em; text-transform: uppercase;
+            color: var(--dim); margin-top: -15px; margin-bottom: 40px;
         }
 
-        .btn-access:hover {
-            border-color: var(--gold);
-            letter-spacing: 0.4em;
-            box-shadow: 0 0 30px rgba(197, 160, 89, 0.1);
+        p {
+            font-size: 1rem; font-weight: 300; letter-spacing: 0.05em;
+            color: #888; margin-bottom: 50px;
         }
 
-        .footer-note {
-            position: fixed;
-            bottom: 40px;
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
+        .btn-gate {
+            background: transparent; color: var(--text);
+            border: 1px solid var(--accent);
+            padding: 16px 45px; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.3em;
+            cursor: pointer; transition: all 0.4s;
+            position: relative;
+        }
+
+        .btn-gate:hover {
+            background: var(--accent); color: #000;
+            box-shadow: 0 0 30px rgba(197, 160, 89, 0.2);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 5rem; }
+            .btn-gate { width: 80%; }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="brand">Syntia AI</div>
-        
-        <h1 class="gate-title">Accès Privé. Identifiez-vous.</h1>
-        
-        <div class="divider"></div>
+    <button class="lang-switch" id="langBtn" onclick="toggleLang()">FR</button>
 
-        <button class="btn-access" onclick="u()">Authentification</button>
+    <div class="vault-card">
+        <div class="glow-circle"></div>
+        <h1>403</h1>
+        <div class="error-code" id="errorText">Forbidden</div>
+        <p id="subText">Restricted protocol. Identity required.</p>
+        <button class="btn-gate" id="mainBtn" onclick="u()">Verify Identity</button>
     </div>
 
-    <div class="footer-note">Protocol 2026 — Secure Node</div>
-
     <script>
+        let currentLang = 'en';
+
+        const content = {
+            en: {
+                error: "Forbidden",
+                sub: "Restricted protocol. Identity required.",
+                btn: "Verify Identity",
+                prompt: "Enter credentials:",
+                denied: "Access Denied.",
+                switch: "FR"
+            },
+            fr: {
+                error: "Interdit",
+                sub: "Protocole restreint. Identité requise.",
+                btn: "Vérifier l'identité",
+                prompt: "Entrez vos accès :",
+                denied: "Accès Refusé.",
+                switch: "EN"
+            }
+        };
+
+        function toggleLang() {
+            currentLang = currentLang === 'en' ? 'fr' : 'en';
+            document.getElementById('errorText').innerText = content[currentLang].error;
+            document.getElementById('subText').innerText = content[currentLang].sub;
+            document.getElementById('mainBtn').innerText = content[currentLang].btn;
+            document.getElementById('langBtn').innerText = content[currentLang].switch;
+        }
+
         function u() {
-            const i = prompt("Entrez la clé :");
+            const i = prompt(content[currentLang].prompt);
             if (btoa(i) === "SEIyMDI2") {
                 window.location.replace("main.html");
             } else if (i) {
-                alert("Clé refusée.");
+                alert(content[currentLang].denied);
             }
         }
     </script>
