@@ -6,96 +6,99 @@
     <title>Syntia AI</title>
     <style>
         :root {
-            --bg: #ffffff;
-            --text: #1a1a1a;
-            --light-gray: #f5f5f7;
-            --border: #e5e5e5;
+            --bg: #000000;
+            --gold: #c5a059;
+            --gray: #1a1a1a;
+            --text-dim: #555;
         }
 
         body {
-            margin: 0; padding: 0; background: var(--bg); color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+            margin: 0; padding: 0; background: var(--bg); color: #fff;
+            font-family: 'Inter', -apple-system, sans-serif;
             display: flex; align-items: center; justify-content: center;
-            height: 100vh; -webkit-font-smoothing: antialiased;
+            height: 100vh; overflow: hidden;
         }
 
-        .wrapper {
+        .container {
             text-align: center;
-            max-width: 400px;
-            padding: 40px;
+            padding: 20px;
+            max-width: 500px;
         }
 
-        .logo-area {
-            font-weight: 600;
-            font-size: 0.9rem;
+        .brand {
+            font-size: 0.7rem;
+            letter-spacing: 0.8em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 60px;
+            font-weight: 300;
+        }
+
+        .gate-title {
+            font-size: 1.5rem;
+            font-weight: 200;
+            letter-spacing: -0.01em;
+            margin-bottom: 50px;
+            color: #eee;
+        }
+
+        .divider {
+            width: 1px;
+            height: 80px;
+            background: linear-gradient(to bottom, var(--bg), var(--gold), var(--bg));
+            margin: 0 auto 50px auto;
+        }
+
+        .btn-access {
+            background: transparent;
+            color: #fff;
+            border: 1px solid var(--gray);
+            padding: 16px 40px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            cursor: pointer;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 2px;
+        }
+
+        .btn-access:hover {
+            border-color: var(--gold);
+            letter-spacing: 0.4em;
+            box-shadow: 0 0 30px rgba(197, 160, 89, 0.1);
+        }
+
+        .footer-note {
+            position: fixed;
+            bottom: 40px;
+            font-size: 0.6rem;
+            color: var(--text-dim);
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            margin-bottom: 80px;
-            color: #888;
-        }
-
-        h1 {
-            font-size: 1.2rem;
-            font-weight: 400;
-            margin-bottom: 40px;
-            letter-spacing: -0.02em;
-            color: var(--text);
-        }
-
-        .line {
-            width: 40px;
-            height: 1px;
-            background: var(--border);
-            margin: 0 auto 40px auto;
-        }
-
-        .btn-enter {
-            background: var(--text);
-            color: var(--bg);
-            border: none;
-            padding: 14px 32px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-enter:hover {
-            transform: scale(1.02);
-            background: #000;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-
-        .info {
-            margin-top: 100px;
-            font-size: 0.75rem;
-            color: #b5b5b5;
-            letter-spacing: 0.05em;
         }
     </style>
 </head>
 <body>
 
-    <div class="wrapper">
-        <div class="logo-area">Syntia</div>
+    <div class="container">
+        <div class="brand">Syntia AI</div>
         
-        <h1>Accès restreint aux membres du protocole.</h1>
+        <h1 class="gate-title">Accès Privé. Identifiez-vous.</h1>
         
-        <div class="line"></div>
+        <div class="divider"></div>
 
-        <button class="btn-enter" onclick="u()">Authentification</button>
-
-        <div class="info">© 2026 PRIVACY FIRST</div>
+        <button class="btn-access" onclick="u()">Authentification</button>
     </div>
+
+    <div class="footer-note">Protocol 2026 — Secure Node</div>
 
     <script>
         function u() {
-            const i = prompt("Clé d'accès :");
+            const i = prompt("Entrez la clé :");
             if (btoa(i) === "SEIyMDI2") {
                 window.location.replace("main.html");
             } else if (i) {
-                alert("Clé invalide.");
+                alert("Clé refusée.");
             }
         }
     </script>
