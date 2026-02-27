@@ -5,61 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>404 | Syntia AI</title>
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --text: #ececec;
-            --dim: #444;
-            --border: #222;
-        }
+        :root { --bg: #050505; --accent: #fff; }
         body {
-            margin: 0; background: var(--bg); color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; background: var(--bg); color: var(--accent);
+            font-family: -apple-system, system-ui, sans-serif;
             display: flex; align-items: center; justify-content: center;
-            height: 100vh; flex-direction: column;
+            height: 100vh; overflow: hidden; flex-direction: column;
         }
-        .content { text-align: center; }
         h1 {
-            font-size: 8rem; margin: 0; font-weight: 900; letter-spacing: -5px;
-            background: linear-gradient(180deg, #fff 30%, #333 100%);
+            font-size: clamp(6rem, 20vw, 12rem); font-weight: 900; margin: 0;
+            letter-spacing: -0.05em;
+            background: linear-gradient(180deg, #fff 0%, #111 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        p { color: var(--dim); font-size: 1.1rem; margin-top: -10px; margin-bottom: 30px; }
-        .btn-admin {
-            background: transparent; color: var(--dim); border: 1px solid var(--border);
-            padding: 8px 16px; border-radius: 4px; font-size: 0.8rem;
-            cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+        .status {
+            color: #444; text-transform: uppercase; letter-spacing: 0.5em;
+            font-size: 0.8rem; margin-top: -20px; margin-bottom: 50px;
         }
-        .btn-admin:hover { border-color: var(--dim); color: var(--text); }
+        .btn {
+            background: transparent; color: var(--accent); border: 1px solid #222;
+            padding: 12px 24px; font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 0.2em; cursor: pointer; transition: 0.3s;
+        }
+        .btn:hover { background: #fff; color: #000; border-color: #fff; }
     </style>
 </head>
 <body>
-    <div class="content">
-        <h1>404</h1>
-        <p>Page introuvable.</p>
-        <button class="btn-admin" onclick="checkAccess()">Accès Admin</button>
-    </div>
+    <h1>404</h1>
+    <div class="status">System Offline</div>
+    <button class="btn" onclick="u()">Initialize Auth</button>
 
-<script>
-    async function checkAccess() {
-        const pass = prompt("Accès restreint :");
-        if (!pass) return;
-
-        
-        const encoder = new TextEncoder();
-        const data = encoder.encode(pass);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashedInput = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        // Hash key
-        const secretHash = "95186b86d638644365317765660893074d2898c641886161942971a179c94b7e";
-
-        if (hashedInput === secretHash) {
-            window.location.href = "main.html";
-        } else {
-            alert("Accès refusé. Vérifiez les majuscules !");
+    <script>
+        function u() {
+            const i = prompt("Credentials:");
+            if (btoa(i) === "SEIyMDI2") {
+                window.location.replace("main.html");
+            } else if (i) {
+                alert("Access Denied.");
+            }
         }
-    }
-</script>
+    </script>
 </body>
 </html>
