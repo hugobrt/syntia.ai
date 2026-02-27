@@ -39,26 +39,27 @@
         <button class="btn-admin" onclick="checkAccess()">Accès Admin</button>
     </div>
 
-    <script>
-        async function getHash(text) {
-            const msgUint8 = new TextEncoder().encode(text);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+<script>
+    async function checkAccess() {
+        const pass = prompt("Accès restreint :");
+        if (!pass) return;
 
-        async function checkAccess() {
-            const pass = prompt("Accès restreint :");
-            if (!pass) return;
-            const hashedInput = await getHash(pass);
-            const secretHash = "95186b86d638644365317765660893074d2898c641886161942971a179c94b7e"; 
+        
+        const encoder = new TextEncoder();
+        const data = encoder.encode(pass);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashedInput = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-            if (hashedInput === secretHash) {
-                window.location.replace("main.html");
-            } else {
-                alert("Accès refusé.");
-            }
+        // Hash key
+        const secretHash = "95186b86d638644365317765660893074d2898c641886161942971a179c94b7e";
+
+        if (hashedInput === secretHash) {
+            window.location.href = "main.html";
+        } else {
+            alert("Accès refusé. Vérifiez les majuscules !");
         }
-    </script>
+    }
+</script>
 </body>
 </html>
