@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 | Syntia AI</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --text: #ececec;
+            --dim: #444;
+            --border: #222;
+        }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; flex-direction: column;
+        }
+        .content { text-align: center; }
+        h1 {
+            font-size: 8rem; margin: 0; font-weight: 900; letter-spacing: -5px;
+            background: linear-gradient(180deg, #fff 30%, #333 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        p { color: var(--dim); font-size: 1.1rem; margin-top: -10px; margin-bottom: 30px; }
+        .btn-admin {
+            background: transparent; color: var(--dim); border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 4px; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+        }
+        .btn-admin:hover { border-color: var(--dim); color: var(--text); }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>404</h1>
+        <p>Page introuvable.</p>
+        <button class="btn-admin" onclick="checkAccess()">Accès Admin</button>
+    </div>
+
+    <script>
+        async function getHash(text) {
+            const msgUint8 = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkAccess() {
+            const pass = prompt("Accès restreint :");
+            if (!pass) return;
+            const hashedInput = await getHash(pass);
+            const secretHash = "95186b86d638644365317765660893074d2898c641886161942971a179c94b7e"; 
+
+            if (hashedInput === secretHash) {
+                window.location.replace("main.html");
+            } else {
+                alert("Accès refusé.");
+            }
+        }
+    </script>
+</body>
+</html>
