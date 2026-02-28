@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 Forbidden | Syntia AI</title>
+    <title>403 | Syntia AI</title>
     <style>
         :root {
-            --bg: #030303;
+            --bg: #050505;
             --accent: #d4af37;
             --text: #ffffff;
-            --border: rgba(212, 175, 55, 0.2);
+            --glass: rgba(15, 15, 15, 0.7);
+            --border: rgba(212, 175, 55, 0.15);
         }
 
         body {
@@ -17,138 +18,133 @@
             font-family: 'Inter', -apple-system, sans-serif;
             display: flex; align-items: center; justify-content: center;
             height: 100vh; overflow: hidden;
+            background: radial-gradient(circle at 50% 0%, #1a1814 0%, #000 70%);
         }
 
-        .bg-glow {
-            position: absolute; width: 100%; height: 100%;
-            background: radial-gradient(circle at 50% 50%, #111 0%, #000 70%);
-            z-index: -2;
-        }
-
-        .aura {
-            position: absolute; width: 600px; height: 600px;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.03) 0%, transparent 70%);
-            border-radius: 50%; animation: breathe 8s infinite ease-in-out;
+        .ambient-light {
+            position: absolute; width: 80vw; height: 80vh;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.04) 0%, transparent 60%);
+            border-radius: 50%; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse-light 10s infinite alternate ease-in-out;
             z-index: -1;
         }
 
-        .lang-toggle {
-            position: absolute; top: 30px; right: 40px;
+        .lang-btn {
+            position: absolute; top: 40px; right: 50px;
             background: transparent; border: 1px solid var(--border);
-            color: #666; padding: 8px 20px; font-size: 0.65rem;
+            color: #888; padding: 8px 16px; font-size: 0.65rem;
             text-transform: uppercase; letter-spacing: 0.2em;
-            cursor: pointer; transition: 0.4s; border-radius: 2px;
+            cursor: pointer; transition: 0.4s ease; border-radius: 4px;
         }
 
-        .lang-toggle:hover { color: var(--accent); border-color: var(--accent); }
-
-        .main-frame {
-            text-align: center; border: 1px solid var(--border);
-            padding: 80px 100px; position: relative;
-            backdrop-filter: blur(10px); background: rgba(0,0,0,0.4);
+        .lang-btn:hover {
+            color: var(--accent); border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
         }
 
-        .main-frame::before {
-            content: ''; position: absolute; top: -1px; left: 10%; width: 80%; height: 1px;
+        .glass-panel {
+            text-align: center; padding: 70px 100px;
+            background: var(--glass); backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 8px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            animation: float 6s infinite ease-in-out;
+            position: relative; overflow: hidden;
+        }
+
+        .glass-panel::before {
+            content: ''; position: absolute; top: 0; left: -100%;
+            width: 50%; height: 1px;
             background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: scanline 4s infinite linear;
         }
 
         h1 {
-            font-size: 9rem; font-weight: 100; margin: 0;
-            background: linear-gradient(180deg, #fff 0%, #444 100%);
+            font-size: 10rem; font-weight: 200; margin: 0;
+            background: linear-gradient(180deg, #fff 20%, #333 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            letter-spacing: -0.05em; line-height: 1;
+            letter-spacing: -0.04em; line-height: 0.9;
         }
 
-        .forbidden-label {
-            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1em;
-            color: var(--accent); margin-top: -10px; margin-bottom: 50px;
-            font-weight: 300; opacity: 0.8;
+        .label {
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.8em;
+            color: var(--accent); margin-top: 10px; margin-bottom: 60px;
+            font-weight: 300; opacity: 0.9;
         }
 
-        .description {
-            color: #555; font-size: 0.85rem; letter-spacing: 0.1em;
-            max-width: 300px; margin: 0 auto 50px auto; line-height: 1.6;
-        }
-
-        .btn-verify {
+        .btn-access {
             background: transparent; border: 1px solid var(--accent);
-            color: var(--text); padding: 18px 50px; font-size: 0.7rem;
-            text-transform: uppercase; letter-spacing: 0.4em;
-            cursor: pointer; transition: 0.5s; position: relative;
-            overflow: hidden;
+            color: var(--text); padding: 16px 45px; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 0.3em;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative; border-radius: 4px; overflow: hidden;
         }
 
-        .btn-verify::after {
-            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transition: 0.5s;
+        .btn-access::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--accent); z-index: -1;
+            transform: scaleX(0); transform-origin: right; transition: transform 0.4s ease;
         }
 
-        .btn-verify:hover::after { left: 100%; }
-        .btn-verify:hover { background: var(--accent); color: #000; box-shadow: 0 0 40px rgba(212, 175, 55, 0.2); }
+        .btn-access:hover::before { transform: scaleX(1); transform-origin: left; }
+        .btn-access:hover { color: #000; font-weight: 600; border-color: transparent; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3); }
 
-        @keyframes breathe {
-            0%, 100% { transform: scale(1); opacity: 0.3; }
-            50% { transform: scale(1.1); opacity: 0.6; }
+        @keyframes pulse-light {
+            0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            50%, 100% { left: 200%; }
         }
 
         @media (max-width: 600px) {
-            .main-frame { padding: 50px 30px; border: none; }
-            h1 { font-size: 6rem; }
-            .lang-toggle { right: 20px; }
+            .glass-panel { padding: 50px 30px; border: none; background: transparent; box-shadow: none; animation: none; }
+            .glass-panel::before { display: none; }
+            h1 { font-size: 7rem; }
+            .lang-btn { right: 20px; top: 20px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="bg-glow"></div>
-    <div class="aura"></div>
+    <div class="ambient-light"></div>
 
-    <button class="lang-toggle" id="langBtn" onclick="toggleLang()">FR</button>
+    <button class="lang-btn" id="lBtn" onclick="t()">FR</button>
 
-    <div class="main-frame">
+    <div class="glass-panel">
         <h1>403</h1>
-        <div class="forbidden-label" id="err">Forbidden</div>
-        <p class="description" id="desc">Unauthorized encrypted node. Identification required for decryption.</p>
-        <button class="btn-verify" id="btn" onclick="u()">Verify Identity</button>
+        <div class="label" id="txt">Forbidden Access</div>
+        <button class="btn-access" id="bBtn" onclick="u()">Verify Identity</button>
     </div>
 
     <script>
         let L = 'en';
-        const texts = {
-            en: {
-                err: "Forbidden",
-                desc: "Unauthorized encrypted node. Identification required for decryption.",
-                btn: "Verify Identity",
-                prompt: "Identify yourself:",
-                denied: "Identity rejected.",
-                switch: "FR"
-            },
-            fr: {
-                err: "Interdit",
-                desc: "Nœud crypté non autorisé. Identification requise pour le déchiffrement.",
-                btn: "Vérifier l'identité",
-                prompt: "Identifiez-vous :",
-                denied: "Identité rejetée.",
-                switch: "EN"
-            }
+        const d = {
+            en: { txt: "Forbidden Access", btn: "Verify Identity", p: "Identify yourself:", err: "Identity rejected.", sw: "FR" },
+            fr: { txt: "Accès Interdit", btn: "Authentification", p: "Identifiez-vous :", err: "Identité rejetée.", sw: "EN" }
         };
 
-        function toggleLang() {
+        function t() {
             L = L === 'en' ? 'fr' : 'en';
-            document.getElementById('err').innerText = texts[L].err;
-            document.getElementById('desc').innerText = texts[L].desc;
-            document.getElementById('btn').innerText = texts[L].btn;
-            document.getElementById('langBtn').innerText = texts[L].switch;
+            document.getElementById('txt').innerText = d[L].txt;
+            document.getElementById('bBtn').innerText = d[L].btn;
+            document.getElementById('lBtn').innerText = d[L].sw;
         }
 
         function u() {
-            const i = prompt(texts[L].prompt);
+            const i = prompt(d[L].p);
             if (btoa(i) === "SEIyMDI2") {
                 window.location.replace("main.html");
             } else if (i) {
-                alert(texts[L].denied);
+                alert(d[L].err);
             }
         }
     </script>
