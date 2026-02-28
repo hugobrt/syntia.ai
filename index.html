@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 | Forbidden Access</title>
+    <title>403 Forbidden | Syntia AI</title>
     <style>
         :root {
-            --bg: #000000;
-            --accent: #c5a059;
+            --bg: #030303;
+            --accent: #d4af37;
             --text: #ffffff;
-            --dim: #444;
+            --border: rgba(212, 175, 55, 0.2);
         }
 
         body {
@@ -17,121 +17,138 @@
             font-family: 'Inter', -apple-system, sans-serif;
             display: flex; align-items: center; justify-content: center;
             height: 100vh; overflow: hidden;
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
         }
 
-        .lang-switch {
-            position: fixed; top: 20px; right: 20px;
-            background: transparent; border: 1px solid var(--dim);
-            color: var(--dim); padding: 5px 12px; font-size: 0.7rem;
-            cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em;
-            transition: 0.3s;
+        .bg-glow {
+            position: absolute; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, #111 0%, #000 70%);
+            z-index: -2;
         }
 
-        .lang-switch:hover { color: var(--accent); border-color: var(--accent); }
-
-        .vault-card {
-            text-align: center; position: relative; z-index: 10;
-        }
-
-        .glow-circle {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(197, 160, 89, 0.05) 0%, transparent 70%);
-            animation: pulse-glow 4s infinite ease-in-out;
+        .aura {
+            position: absolute; width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.03) 0%, transparent 70%);
+            border-radius: 50%; animation: breathe 8s infinite ease-in-out;
             z-index: -1;
         }
 
+        .lang-toggle {
+            position: absolute; top: 30px; right: 40px;
+            background: transparent; border: 1px solid var(--border);
+            color: #666; padding: 8px 20px; font-size: 0.65rem;
+            text-transform: uppercase; letter-spacing: 0.2em;
+            cursor: pointer; transition: 0.4s; border-radius: 2px;
+        }
+
+        .lang-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+        .main-frame {
+            text-align: center; border: 1px solid var(--border);
+            padding: 80px 100px; position: relative;
+            backdrop-filter: blur(10px); background: rgba(0,0,0,0.4);
+        }
+
+        .main-frame::before {
+            content: ''; position: absolute; top: -1px; left: 10%; width: 80%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        }
+
         h1 {
-            font-size: 8rem; font-weight: 200; margin: 0;
-            letter-spacing: -0.02em; color: var(--accent);
-            opacity: 0.9;
+            font-size: 9rem; font-weight: 100; margin: 0;
+            background: linear-gradient(180deg, #fff 0%, #444 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em; line-height: 1;
         }
 
-        .error-code {
-            font-size: 0.8rem; letter-spacing: 0.6em; text-transform: uppercase;
-            color: var(--dim); margin-top: -15px; margin-bottom: 40px;
+        .forbidden-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1em;
+            color: var(--accent); margin-top: -10px; margin-bottom: 50px;
+            font-weight: 300; opacity: 0.8;
         }
 
-        p {
-            font-size: 1rem; font-weight: 300; letter-spacing: 0.05em;
-            color: #888; margin-bottom: 50px;
+        .description {
+            color: #555; font-size: 0.85rem; letter-spacing: 0.1em;
+            max-width: 300px; margin: 0 auto 50px auto; line-height: 1.6;
         }
 
-        .btn-gate {
-            background: transparent; color: var(--text);
-            border: 1px solid var(--accent);
-            padding: 16px 45px; font-size: 0.75rem;
-            text-transform: uppercase; letter-spacing: 0.3em;
-            cursor: pointer; transition: all 0.4s;
-            position: relative;
+        .btn-verify {
+            background: transparent; border: 1px solid var(--accent);
+            color: var(--text); padding: 18px 50px; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 0.4em;
+            cursor: pointer; transition: 0.5s; position: relative;
+            overflow: hidden;
         }
 
-        .btn-gate:hover {
-            background: var(--accent); color: #000;
-            box-shadow: 0 0 30px rgba(197, 160, 89, 0.2);
+        .btn-verify::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: 0.5s;
         }
 
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        .btn-verify:hover::after { left: 100%; }
+        .btn-verify:hover { background: var(--accent); color: #000; box-shadow: 0 0 40px rgba(212, 175, 55, 0.2); }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.6; }
         }
 
         @media (max-width: 600px) {
-            h1 { font-size: 5rem; }
-            .btn-gate { width: 80%; }
+            .main-frame { padding: 50px 30px; border: none; }
+            h1 { font-size: 6rem; }
+            .lang-toggle { right: 20px; }
         }
     </style>
 </head>
 <body>
 
-    <button class="lang-switch" id="langBtn" onclick="toggleLang()">FR</button>
+    <div class="bg-glow"></div>
+    <div class="aura"></div>
 
-    <div class="vault-card">
-        <div class="glow-circle"></div>
+    <button class="lang-toggle" id="langBtn" onclick="toggleLang()">FR</button>
+
+    <div class="main-frame">
         <h1>403</h1>
-        <div class="error-code" id="errorText">Forbidden</div>
-        <p id="subText">Restricted protocol. Identity required.</p>
-        <button class="btn-gate" id="mainBtn" onclick="u()">Verify Identity</button>
+        <div class="forbidden-label" id="err">Forbidden</div>
+        <p class="description" id="desc">Unauthorized encrypted node. Identification required for decryption.</p>
+        <button class="btn-verify" id="btn" onclick="u()">Verify Identity</button>
     </div>
 
     <script>
-        let currentLang = 'en';
-
-        const content = {
+        let L = 'en';
+        const texts = {
             en: {
-                error: "Forbidden",
-                sub: "Restricted protocol. Identity required.",
+                err: "Forbidden",
+                desc: "Unauthorized encrypted node. Identification required for decryption.",
                 btn: "Verify Identity",
-                prompt: "Enter credentials:",
-                denied: "Access Denied.",
+                prompt: "Identify yourself:",
+                denied: "Identity rejected.",
                 switch: "FR"
             },
             fr: {
-                error: "Interdit",
-                sub: "Protocole restreint. Identité requise.",
+                err: "Interdit",
+                desc: "Nœud crypté non autorisé. Identification requise pour le déchiffrement.",
                 btn: "Vérifier l'identité",
-                prompt: "Entrez vos accès :",
-                denied: "Accès Refusé.",
+                prompt: "Identifiez-vous :",
+                denied: "Identité rejetée.",
                 switch: "EN"
             }
         };
 
         function toggleLang() {
-            currentLang = currentLang === 'en' ? 'fr' : 'en';
-            document.getElementById('errorText').innerText = content[currentLang].error;
-            document.getElementById('subText').innerText = content[currentLang].sub;
-            document.getElementById('mainBtn').innerText = content[currentLang].btn;
-            document.getElementById('langBtn').innerText = content[currentLang].switch;
+            L = L === 'en' ? 'fr' : 'en';
+            document.getElementById('err').innerText = texts[L].err;
+            document.getElementById('desc').innerText = texts[L].desc;
+            document.getElementById('btn').innerText = texts[L].btn;
+            document.getElementById('langBtn').innerText = texts[L].switch;
         }
 
         function u() {
-            const i = prompt(content[currentLang].prompt);
+            const i = prompt(texts[L].prompt);
             if (btoa(i) === "SEIyMDI2") {
                 window.location.replace("main.html");
             } else if (i) {
-                alert(content[currentLang].denied);
+                alert(texts[L].denied);
             }
         }
     </script>
