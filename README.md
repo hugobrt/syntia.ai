@@ -7,7 +7,7 @@
 
 > **L'alliance ultime entre Business, Gaming et Intelligence Artificielle.**
 
-🌐 **Site Web & Documentation :** [https://hugobrt.github.io/syntia.ai/](https://hugobrt.github.io/syntia.ai/)
+🌐 **Site Web & Documentation :** [https://syntia-ai.drt-hbr.sbs](https://syntia-ai.drt-hbr.sbs)
 
 ---
 
