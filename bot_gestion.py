@@ -1,15 +1,14 @@
 """
-🎭 BOT GESTION V3.3 FIXED PERSISTENT
+🎭 BOT GESTION V3.4 - WAKE UP BDD
 =====================================
 Version CORRIGÉE avec custom_id sur TOUS les boutons !
 
-BUG CORRIGÉ:
-- ✅ Tous les boutons ont maintenant un custom_id
-- ✅ View est persistent (timeout=None)
-- ✅ Le task rotate_status démarre correctement
-- ✅ La rotation automatique MARCHE !
+NOUVEAUTÉS V3.4:
+- ✅ Bouton "Wake up BDD" dans BotControlView
+- ✅ Task keepalive_bdd (ping automatique Aiven + Neon toutes les heures)
+- ✅ Réinitialisation automatique si BDD déconnectée
 
-Version: 3.3 FIXED PERSISTENT
+Version: 3.4 WAKE UP BDD
 """
 
 import discord
@@ -62,7 +61,7 @@ def load_json(filepath: str, default: any = None) -> any:
 class StatusHistory:
     def __init__(self):
         self.history = load_json(STATUS_HISTORY_FILE, [])
-    
+
     def add(self, status_type: str, status_text: str, user_id: int):
         entry = {
             'timestamp': datetime.now().isoformat(),
@@ -72,7 +71,7 @@ class StatusHistory:
         }
         self.history.insert(0, entry)
         save_json(STATUS_HISTORY_FILE, self.history)
-    
+
     def get_recent(self, limit: int = 20) -> List[dict]:
         return self.history[:limit]
 
@@ -85,7 +84,7 @@ status_history = StatusHistory()
 class StatusScheduler:
     def __init__(self):
         self.schedules = load_json(STATUS_SCHEDULES_FILE, [])
-    
+
     def add(self, hour: int, minute: int, status_type: str, status_text: str, days: List[int] = None) -> dict:
         schedule = {
             'id': len(self.schedules) + 1,
@@ -100,25 +99,21 @@ class StatusScheduler:
         self.schedules.append(schedule)
         save_json(STATUS_SCHEDULES_FILE, self.schedules)
         return schedule
-    
+
     def get_due(self) -> List[dict]:
         now = datetime.now()
         due = []
-        
         for schedule in self.schedules:
             if not schedule.get('enabled', True):
                 continue
-            
             if now.weekday() not in schedule.get('days', [0, 1, 2, 3, 4, 5, 6]):
                 continue
-            
             if schedule['hour'] == now.hour and schedule['minute'] == now.minute:
                 last_exec = schedule.get('last_executed')
                 if not last_exec or last_exec != now.strftime("%Y-%m-%d %H:%M"):
                     due.append(schedule)
-        
         return due
-    
+
     def mark_executed(self, schedule_id: int):
         for schedule in self.schedules:
             if schedule['id'] == schedule_id:
@@ -135,7 +130,7 @@ status_scheduler = StatusScheduler()
 class StatusThemes:
     def __init__(self):
         self.themes = load_json(STATUS_THEMES_FILE, self._get_default_themes())
-    
+
     def _get_default_themes(self) -> Dict[str, List[dict]]:
         return {
             'business': [
@@ -199,10 +194,10 @@ class StatusThemes:
                 {'type': 'listening', 'text': '🎧 le dernier album'}
             ]
         }
-    
+
     def get_theme(self, theme_name: str) -> List[dict]:
         return self.themes.get(theme_name, [])
-    
+
     def get_all(self) -> Dict[str, List[dict]]:
         return self.themes
 
@@ -222,44 +217,39 @@ class StatusRotation:
         })
         logger.info(f"🔄 Rotation: {'ACTIVÉE' if self.config.get('enabled') else 'DÉSACTIVÉE'}")
         logger.info(f"⏱️ Intervalle: {self.config.get('interval_minutes')}min, Thème: {self.config.get('theme')}")
-    
+
     def is_enabled(self) -> bool:
         return self.config.get('enabled', False)
-    
+
     def toggle(self) -> bool:
         self.config['enabled'] = not self.config.get('enabled', False)
         save_json(STATUS_ROTATION_FILE, self.config)
         logger.info(f"🔄 Rotation: {'ACTIVÉE' if self.config['enabled'] else 'DÉSACTIVÉE'}")
         return self.config['enabled']
-    
+
     def set_theme(self, theme: str):
         self.config['theme'] = theme
         self.config['current_index'] = 0
         save_json(STATUS_ROTATION_FILE, self.config)
         logger.info(f"🎨 Thème changé: {theme}")
-    
+
     def set_interval(self, minutes: int):
         self.config['interval_minutes'] = minutes
         save_json(STATUS_ROTATION_FILE, self.config)
         logger.info(f"⏱️ Intervalle changé: {minutes}min")
-    
+
     def get_next_status(self) -> Optional[dict]:
         theme = self.config.get('theme', 'business')
         statuses = status_themes.get_theme(theme)
-        
         if not statuses:
             return None
-        
         index = self.config.get('current_index', 0)
         status = statuses[index % len(statuses)]
-        
         self.config['current_index'] = (index + 1) % len(statuses)
         save_json(STATUS_ROTATION_FILE, self.config)
-        
         return status
 
 status_rotation = StatusRotation()
-
 _bot_instance = None
 
 # ====================================================
@@ -269,6 +259,7 @@ _bot_instance = None
 class StatusCustomModal(discord.ui.Modal, title="✏️ Statut Personnalisé"):
     status_type = discord.ui.TextInput(label="Type (joue/regarde/ecoute/stream)", placeholder="joue", required=True)
     status_text = discord.ui.TextInput(label="Texte du statut", placeholder="Votre statut ici...", required=True, max_length=128)
+
     async def on_submit(self, i: discord.Interaction):
         text = self.status_text.value
         type_input = self.status_type.value.lower()
@@ -294,6 +285,7 @@ class ScheduleStatusModal(discord.ui.Modal, title="⏰ Programmer un Statut"):
     minute = discord.ui.TextInput(label="Minute (0-59)", placeholder="30", max_length=2)
     status_type = discord.ui.TextInput(label="Type (joue/regarde/ecoute)", placeholder="joue")
     status_text = discord.ui.TextInput(label="Texte", placeholder="Votre statut...")
+
     async def on_submit(self, i: discord.Interaction):
         try:
             h = int(self.hour.value)
@@ -317,6 +309,7 @@ class ScheduleStatusModal(discord.ui.Modal, title="⏰ Programmer un Statut"):
 class RotationConfigModal(discord.ui.Modal, title="🔄 Config Rotation"):
     interval = discord.ui.TextInput(label="Intervalle (minutes)", placeholder="5", default="5")
     theme = discord.ui.TextInput(label="Thème", placeholder="business, gaming, crypto, etc.", default="business")
+
     async def on_submit(self, i: discord.Interaction):
         try:
             minutes = int(self.interval.value)
@@ -329,10 +322,9 @@ class RotationConfigModal(discord.ui.Modal, title="🔄 Config Rotation"):
                 return
             status_rotation.set_interval(minutes)
             status_rotation.set_theme(theme)
-            # Redémarrer le task avec le nouvel intervalle
             if rotate_status.is_running():
                 rotate_status.cancel()
-                await asyncio.sleep(1)  # Attendre que le task s'arrête
+                await asyncio.sleep(1)
             rotate_status.change_interval(minutes=minutes)
             if _bot_instance:
                 rotate_status.start(_bot_instance)
@@ -354,33 +346,31 @@ class RotationConfigModal(discord.ui.Modal, title="🔄 Config Rotation"):
 class BotControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-    
-    # AJOUT DE CUSTOM_ID SUR TOUS LES BOUTONS ✅
+
     @discord.ui.button(label="🟢 En Ligne", style=discord.ButtonStyle.success, row=0, custom_id="status_online")
     async def online(self, i: discord.Interaction, button: discord.ui.Button):
         await i.client.change_presence(status=discord.Status.online)
         status_history.add("status", "online", i.user.id)
         await i.response.send_message("✅ Bot en ligne", ephemeral=True)
-    
+
     @discord.ui.button(label="🟡 Absent", style=discord.ButtonStyle.secondary, row=0, custom_id="status_idle")
     async def idle(self, i: discord.Interaction, button: discord.ui.Button):
         await i.client.change_presence(status=discord.Status.idle)
         status_history.add("status", "idle", i.user.id)
         await i.response.send_message("🟡 Bot en veille", ephemeral=True)
-    
+
     @discord.ui.button(label="🔴 DND", style=discord.ButtonStyle.primary, row=0, custom_id="status_dnd")
     async def dnd(self, i: discord.Interaction, button: discord.ui.Button):
         await i.client.change_presence(status=discord.Status.dnd)
         status_history.add("status", "dnd", i.user.id)
         await i.response.send_message("🔴 Bot en DND", ephemeral=True)
-    
+
     @discord.ui.button(label="⚫ Invisible", style=discord.ButtonStyle.danger, row=0, custom_id="status_invisible")
     async def invisible(self, i: discord.Interaction, button: discord.ui.Button):
         await i.client.change_presence(status=discord.Status.invisible)
         status_history.add("status", "invisible", i.user.id)
         await i.response.send_message("⚫ Bot invisible", ephemeral=True)
-    
-    # SELECT AVEC CUSTOM_ID ✅
+
     @discord.ui.select(
         placeholder="📋 Statuts Rapides...",
         row=1,
@@ -416,16 +406,15 @@ class BotControlView(discord.ui.View):
         await i.client.change_presence(activity=activity)
         status_history.add(choice, status['text'], i.user.id)
         await i.response.send_message(f"✅ Statut appliqué : **{choice.upper()}**\n💬 {status['text']}", ephemeral=True)
-    
-    # BOUTONS AVEC CUSTOM_ID ✅
+
     @discord.ui.button(label="✏️ Perso", style=discord.ButtonStyle.primary, row=2, custom_id="status_custom")
     async def custom_status(self, i: discord.Interaction, button: discord.ui.Button):
         await i.response.send_modal(StatusCustomModal())
-    
+
     @discord.ui.button(label="⏰ Programmer", style=discord.ButtonStyle.primary, row=2, custom_id="status_schedule")
     async def schedule_status(self, i: discord.Interaction, button: discord.ui.Button):
         await i.response.send_modal(ScheduleStatusModal())
-    
+
     @discord.ui.button(label="🔄 Rotation", style=discord.ButtonStyle.primary, row=2, custom_id="status_rotation_toggle")
     async def rotation(self, i: discord.Interaction, button: discord.ui.Button):
         current_state = status_rotation.toggle()
@@ -444,15 +433,19 @@ class BotControlView(discord.ui.View):
                 await i.client.change_presence(activity=activity)
                 logger.info(f"✅ Rotation activée - Premier statut: {status['text']}")
         status_text = "✅ ACTIVÉE" if current_state else "❌ DÉSACTIVÉE"
-        embed = discord.Embed(title="🔄 Rotation des Statuts", description=f"**État:** {status_text}\n**Thème:** {config.get('theme', 'business')}\n**Intervalle:** {config.get('interval_minutes', 5)} min", color=0x57F287 if current_state else 0xED4245)
+        embed = discord.Embed(
+            title="🔄 Rotation des Statuts",
+            description=f"**État:** {status_text}\n**Thème:** {config.get('theme', 'business')}\n**Intervalle:** {config.get('interval_minutes', 5)} min",
+            color=0x57F287 if current_state else 0xED4245
+        )
         if current_state:
             embed.add_field(name="💡 Info", value=f"Le prochain changement aura lieu dans **{config.get('interval_minutes', 5)} minutes** !", inline=False)
         await i.response.send_message(embed=embed, ephemeral=True)
-    
+
     @discord.ui.button(label="⚙️ Config Rotation", style=discord.ButtonStyle.secondary, row=2, custom_id="status_rotation_config")
     async def config_rotation(self, i: discord.Interaction, button: discord.ui.Button):
         await i.response.send_modal(RotationConfigModal())
-    
+
     @discord.ui.button(label="⚡ Appliquer Maintenant", style=discord.ButtonStyle.success, row=2, custom_id="status_rotation_now")
     async def apply_now(self, i: discord.Interaction, button: discord.ui.Button):
         if not status_rotation.is_enabled():
@@ -473,7 +466,7 @@ class BotControlView(discord.ui.View):
         await i.client.change_presence(activity=activity)
         logger.info(f"⚡ Statut appliqué manuellement: {status['text']}")
         await i.response.send_message(f"✅ Statut appliqué immédiatement !\n💬 {status['text']}", ephemeral=True)
-    
+
     @discord.ui.button(label="📜 Historique", style=discord.ButtonStyle.secondary, row=3, custom_id="status_history")
     async def history(self, i: discord.Interaction, button: discord.ui.Button):
         recent = status_history.get_recent(5)
@@ -486,16 +479,15 @@ class BotControlView(discord.ui.View):
             time_str = timestamp.strftime("%d/%m %H:%M")
             embed.add_field(name=f"{entry['type'].upper()} - {time_str}", value=entry['text'][:100], inline=False)
         await i.response.send_message(embed=embed, ephemeral=True)
-    
+
     @discord.ui.button(label="🎨 Thèmes", style=discord.ButtonStyle.secondary, row=3, custom_id="status_themes")
     async def themes(self, i: discord.Interaction, button: discord.ui.Button):
         themes = status_themes.get_all()
         embed = discord.Embed(title="🎨 Collections de Statuts", description=f"**{len(themes)}** thèmes disponibles", color=0x9B59B6)
         for theme_name, statuses in list(themes.items())[:8]:
-            status_count = len(statuses)
-            embed.add_field(name=f"📁 {theme_name.title()}", value=f"{status_count} statuts", inline=True)
+            embed.add_field(name=f"📁 {theme_name.title()}", value=f"{len(statuses)} statuts", inline=True)
         await i.response.send_message(embed=embed, ephemeral=True)
-    
+
     @discord.ui.button(label="📊 État Rotation", style=discord.ButtonStyle.secondary, row=3, custom_id="status_rotation_state")
     async def rotation_status(self, i: discord.Interaction, button: discord.ui.Button):
         config = status_rotation.config
@@ -510,7 +502,70 @@ class BotControlView(discord.ui.View):
         if theme_statuses:
             embed.add_field(name=f"🎭 Statuts du thème ({len(theme_statuses)})", value="\n".join([f"• {s['text'][:40]}" for s in theme_statuses[:4]]), inline=False)
         await i.response.send_message(embed=embed, ephemeral=True)
-    
+
+    # ====================================================
+    # 🛢️ NOUVEAU : BOUTON WAKE UP BDD (V3.4)
+    # ====================================================
+    @discord.ui.button(label="🛢️ Wake up BDD", style=discord.ButtonStyle.success, row=3, custom_id="status_wakeup_bdd")
+    async def wakeup_bdd(self, i: discord.Interaction, button: discord.ui.Button):
+        await i.response.defer(ephemeral=True)
+        try:
+            from bot2 import getaiven, putaiven, getneon, putneon, initaiven, initneon
+            fields = []
+
+            # --- Test Aiven ---
+            conn = getaiven()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    cur.execute("SELECT 1")
+                    cur.close()
+                    putaiven(conn)
+                    fields.append(("✅ AIVEN", "Connectée & réveillée !", True))
+                    logger.info("Wake up BDD: AIVEN OK")
+                except Exception as e:
+                    putaiven(conn)
+                    ok = initaiven()
+                    fields.append(("🔄 AIVEN", f"Erreur → Réinit: {'✅' if ok else '❌'}", True))
+            else:
+                ok = initaiven()
+                fields.append(("🔄 AIVEN", f"Déconnectée → Réinit: {'✅' if ok else '❌'}", True))
+
+            # --- Test Neon ---
+            conn_n = getneon()
+            if conn_n:
+                try:
+                    cur_n = conn_n.cursor()
+                    cur_n.execute("SELECT 1")
+                    cur_n.close()
+                    putneon(conn_n)
+                    fields.append(("✅ NEON", "Connectée & réveillée !", True))
+                    logger.info("Wake up BDD: NEON OK")
+                except Exception as e:
+                    putneon(conn_n)
+                    ok = initneon()
+                    fields.append(("🔄 NEON", f"Erreur → Réinit: {'✅' if ok else '❌'}", True))
+            else:
+                ok = initneon()
+                fields.append(("🔄 NEON", f"Déconnectée → Réinit: {'✅' if ok else '❌'}", True))
+
+            all_ok = all("✅" in f[1] for f in fields)
+            embed = discord.Embed(
+                title="🛢️ Wake up BDD",
+                description="Ping forcé des bases de données !",
+                color=0x57F287 if all_ok else 0xFEE75C,
+                timestamp=datetime.now()
+            )
+            for name, value, inline in fields:
+                embed.add_field(name=name, value=value, inline=inline)
+            embed.set_footer(text=f"Déclenché par {i.user.name}")
+            await i.followup.send(embed=embed, ephemeral=True)
+            logger.info(f"🛢️ Wake up BDD manuel — {i.user.name}")
+        except ImportError:
+            await i.followup.send("❌ Module bot2 non disponible.", ephemeral=True)
+        except Exception as e:
+            await i.followup.send(f"❌ Erreur: {str(e)[:100]}", ephemeral=True)
+
     @discord.ui.button(label="🔙 RETOUR", style=discord.ButtonStyle.secondary, row=4, custom_id="status_back")
     async def back(self, i: discord.Interaction, button: discord.ui.Button):
         try:
@@ -548,20 +603,15 @@ async def check_scheduled_statuses(bot):
 async def rotate_status(bot):
     """Rotation automatique des statuts - recharge config depuis JSON."""
     try:
-        # IMPORTANT: Recharger le config depuis le fichier à chaque exécution
-        # pour voir les changements faits via les boutons !
         fresh_config = load_json(STATUS_ROTATION_FILE, None)
         if fresh_config:
             status_rotation.config = fresh_config
-
         if not status_rotation.is_enabled():
             logger.info("⏸️ Rotation désactivée - skip")
             return
-
         status = status_rotation.get_next_status()
         if not status:
             return
-
         if status['type'] == 'playing':
             activity = discord.Game(name=status['text'])
         elif status['type'] == 'watching':
@@ -570,11 +620,65 @@ async def rotate_status(bot):
             activity = discord.Activity(type=discord.ActivityType.listening, name=status['text'])
         else:
             return
-
         await bot.change_presence(activity=activity)
         logger.info(f"🔄 Rotation: {status['text']}")
     except Exception as e:
         logger.error(f"❌ Erreur rotation: {e}")
+
+# ====================================================
+# 🛢️ NOUVEAU : TASK KEEPALIVE BDD (V3.4)
+# ====================================================
+
+@tasks.loop(hours=1)
+async def keepalive_bdd(bot):
+    """Ping automatique Aiven + Neon toutes les heures pour éviter la mise en veille."""
+    try:
+        from bot2 import getaiven, putaiven, getneon, putneon, initaiven, initneon
+        results = []
+
+        # --- Test Aiven ---
+        conn = getaiven()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT 1")
+                cur.close()
+                putaiven(conn)
+                logger.info("keepalive_bdd: AIVEN OK")
+                results.append("✅ AIVEN : OK")
+            except Exception as e:
+                putaiven(conn)
+                logger.warning(f"keepalive_bdd: AIVEN erreur — {e}")
+                ok = initaiven()
+                results.append(f"🔄 AIVEN réinit: {'✅' if ok else '❌'}")
+        else:
+            logger.warning("keepalive_bdd: AIVEN down — tentative réinitialisation")
+            ok = initaiven()
+            results.append(f"🔄 AIVEN réinit: {'✅' if ok else '❌'}")
+
+        # --- Test Neon ---
+        conn_n = getneon()
+        if conn_n:
+            try:
+                cur_n = conn_n.cursor()
+                cur_n.execute("SELECT 1")
+                cur_n.close()
+                putneon(conn_n)
+                logger.info("keepalive_bdd: NEON OK")
+                results.append("✅ NEON : OK")
+            except Exception as e:
+                putneon(conn_n)
+                logger.warning(f"keepalive_bdd: NEON erreur — {e}")
+                ok = initneon()
+                results.append(f"🔄 NEON réinit: {'✅' if ok else '❌'}")
+        else:
+            logger.warning("keepalive_bdd: NEON down — tentative réinitialisation")
+            ok = initneon()
+            results.append(f"🔄 NEON réinit: {'✅' if ok else '❌'}")
+
+        logger.info(f"keepalive_bdd terminé: {' | '.join(results)}")
+    except Exception as e:
+        logger.error(f"keepalive_bdd erreur globale: {e}")
 
 # ====================================================
 # 🎯 COG PRINCIPAL
@@ -585,27 +689,28 @@ class BotGestion(commands.Cog):
         self.bot = bot
         global _bot_instance
         _bot_instance = bot
-        logger.info("✅ BotGestion V3.3 FIXED PERSISTENT initialisé")
-    
+        logger.info("✅ BotGestion V3.4 WAKE UP BDD initialisé")
+
     @commands.Cog.listener()
     async def on_ready(self):
-        # IMPORTANT: On n'appelle PAS add_view ici car ça cause l'erreur !
-        # La view sera ajoutée uniquement quand le panel sera déployé
-        
         logger.info("🎭 BotGestion: on_ready() appelé")
-        
-        # Démarrer les tasks
+
         if not check_scheduled_statuses.is_running():
             check_scheduled_statuses.start(self.bot)
             logger.info("✅ Task schedules démarré")
-        
+
         if not rotate_status.is_running():
             interval = status_rotation.config.get('interval_minutes', 5)
             rotate_status.change_interval(minutes=interval)
             rotate_status.start(self.bot)
             logger.info(f"✅ Task rotation démarré (intervalle: {interval}min)")
-        
-        logger.info("🎭 BotGestion V3.3 FIXED PERSISTENT prêt !")
+
+        # NOUVEAU V3.4 : Démarrer le keepalive BDD
+        if not keepalive_bdd.is_running():
+            keepalive_bdd.start(self.bot)
+            logger.info("✅ Task keepalive_bdd démarré (ping BDD toutes les heures)")
+
+        logger.info("🎭 BotGestion V3.4 WAKE UP BDD prêt !")
 
 async def setup(bot):
     await bot.add_cog(BotGestion(bot))
