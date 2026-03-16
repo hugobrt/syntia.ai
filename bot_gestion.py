@@ -1,14 +1,14 @@
 """
 🎭 BOT GESTION V3.4 - WAKE UP BDD
 =====================================
-Version CORRIGÉE avec custom_id sur TOUS les boutons !
+Noms corrigés : get_aiven / put_aiven / get_neon / put_neon / init_aiven / init_neon
 
 NOUVEAUTÉS V3.4:
 - ✅ Bouton "Wake up BDD" dans BotControlView
 - ✅ Task keepalive_bdd (ping automatique Aiven + Neon toutes les heures)
-- ✅ Réinitialisation automatique si BDD déconnectée
+- ✅ Noms de fonctions alignés avec bot2.py
 
-Version: 3.4 WAKE UP BDD
+Version: 3.4
 """
 
 import discord
@@ -300,8 +300,11 @@ class ScheduleStatusModal(discord.ui.Modal, title="⏰ Programmer un Statut"):
                 type_str = "listening"
             else:
                 type_str = "playing"
-            schedule = status_scheduler.add(h, m, type_str, self.status_text.value)
-            await i.response.send_message(f"✅ Statut programmé à **{h:02d}:{m:02d}** !\n📝 Type: {type_str}\n💬 Texte: {self.status_text.value}", ephemeral=True)
+            status_scheduler.add(h, m, type_str, self.status_text.value)
+            await i.response.send_message(
+                f"✅ Statut programmé à **{h:02d}:{m:02d}** !\n📝 Type: {type_str}\n💬 Texte: {self.status_text.value}",
+                ephemeral=True
+            )
             logger.info(f"Statut programmé: {h:02d}:{m:02d}")
         except ValueError:
             await i.response.send_message("❌ Format invalide !", ephemeral=True)
@@ -340,7 +343,7 @@ class RotationConfigModal(discord.ui.Modal, title="🔄 Config Rotation"):
             await i.response.send_message("❌ Intervalle invalide !", ephemeral=True)
 
 # ====================================================
-# 🎮 VUE PRINCIPALE (AVEC CUSTOM_ID) ✅
+# 🎮 VUE PRINCIPALE
 # ====================================================
 
 class BotControlView(discord.ui.View):
@@ -500,56 +503,60 @@ class BotControlView(discord.ui.View):
         theme_name = config.get('theme', 'business')
         theme_statuses = status_themes.get_theme(theme_name)
         if theme_statuses:
-            embed.add_field(name=f"🎭 Statuts du thème ({len(theme_statuses)})", value="\n".join([f"• {s['text'][:40]}" for s in theme_statuses[:4]]), inline=False)
+            embed.add_field(
+                name=f"🎭 Statuts du thème ({len(theme_statuses)})",
+                value="\n".join([f"• {s['text'][:40]}" for s in theme_statuses[:4]]),
+                inline=False
+            )
         await i.response.send_message(embed=embed, ephemeral=True)
 
     # ====================================================
-    # 🛢️ NOUVEAU : BOUTON WAKE UP BDD (V3.4)
+    # 🛢️ BOUTON WAKE UP BDD — noms corrigés (get_aiven etc.)
     # ====================================================
     @discord.ui.button(label="🛢️ Wake up BDD", style=discord.ButtonStyle.success, row=3, custom_id="status_wakeup_bdd")
     async def wakeup_bdd(self, i: discord.Interaction, button: discord.ui.Button):
         await i.response.defer(ephemeral=True)
         try:
-            from bot2 import getaiven, putaiven, getneon, putneon, initaiven, initneon
+            from bot2 import get_aiven, put_aiven, get_neon, put_neon, init_aiven, init_neon
             fields = []
 
             # --- Test Aiven ---
-            conn = getaiven()
+            conn = get_aiven()
             if conn:
                 try:
                     cur = conn.cursor()
                     cur.execute("SELECT 1")
                     cur.close()
-                    putaiven(conn)
+                    put_aiven(conn)
                     fields.append(("✅ AIVEN", "Connectée & réveillée !", True))
                     logger.info("Wake up BDD: AIVEN OK")
                 except Exception as e:
-                    putaiven(conn)
-                    ok = initaiven()
+                    put_aiven(conn)
+                    ok = init_aiven()
                     fields.append(("🔄 AIVEN", f"Erreur → Réinit: {'✅' if ok else '❌'}", True))
             else:
-                ok = initaiven()
+                ok = init_aiven()
                 fields.append(("🔄 AIVEN", f"Déconnectée → Réinit: {'✅' if ok else '❌'}", True))
 
             # --- Test Neon ---
-            conn_n = getneon()
+            conn_n = get_neon()
             if conn_n:
                 try:
                     cur_n = conn_n.cursor()
                     cur_n.execute("SELECT 1")
                     cur_n.close()
-                    putneon(conn_n)
+                    put_neon(conn_n)
                     fields.append(("✅ NEON", "Connectée & réveillée !", True))
                     logger.info("Wake up BDD: NEON OK")
                 except Exception as e:
-                    putneon(conn_n)
-                    ok = initneon()
+                    put_neon(conn_n)
+                    ok = init_neon()
                     fields.append(("🔄 NEON", f"Erreur → Réinit: {'✅' if ok else '❌'}", True))
             else:
-                ok = initneon()
+                ok = init_neon()
                 fields.append(("🔄 NEON", f"Déconnectée → Réinit: {'✅' if ok else '❌'}", True))
 
-            all_ok = all("✅" in f[1] for f in fields)
+            all_ok = all("✅" in f[0] for f in fields)
             embed = discord.Embed(
                 title="🛢️ Wake up BDD",
                 description="Ping forcé des bases de données !",
@@ -561,8 +568,8 @@ class BotControlView(discord.ui.View):
             embed.set_footer(text=f"Déclenché par {i.user.name}")
             await i.followup.send(embed=embed, ephemeral=True)
             logger.info(f"🛢️ Wake up BDD manuel — {i.user.name}")
-        except ImportError:
-            await i.followup.send("❌ Module bot2 non disponible.", ephemeral=True)
+        except ImportError as e:
+            await i.followup.send(f"❌ Import impossible: {str(e)}", ephemeral=True)
         except Exception as e:
             await i.followup.send(f"❌ Erreur: {str(e)[:100]}", ephemeral=True)
 
@@ -601,7 +608,7 @@ async def check_scheduled_statuses(bot):
 
 @tasks.loop(minutes=5)
 async def rotate_status(bot):
-    """Rotation automatique des statuts - recharge config depuis JSON."""
+    """Rotation automatique des statuts."""
     try:
         fresh_config = load_json(STATUS_ROTATION_FILE, None)
         if fresh_config:
@@ -626,54 +633,54 @@ async def rotate_status(bot):
         logger.error(f"❌ Erreur rotation: {e}")
 
 # ====================================================
-# 🛢️ NOUVEAU : TASK KEEPALIVE BDD (V3.4)
+# 🛢️ TASK KEEPALIVE BDD — noms corrigés (get_aiven etc.)
 # ====================================================
 
 @tasks.loop(hours=1)
 async def keepalive_bdd(bot):
     """Ping automatique Aiven + Neon toutes les heures pour éviter la mise en veille."""
     try:
-        from bot2 import getaiven, putaiven, getneon, putneon, initaiven, initneon
+        from bot2 import get_aiven, put_aiven, get_neon, put_neon, init_aiven, init_neon
         results = []
 
         # --- Test Aiven ---
-        conn = getaiven()
+        conn = get_aiven()
         if conn:
             try:
                 cur = conn.cursor()
                 cur.execute("SELECT 1")
                 cur.close()
-                putaiven(conn)
+                put_aiven(conn)
                 logger.info("keepalive_bdd: AIVEN OK")
                 results.append("✅ AIVEN : OK")
             except Exception as e:
-                putaiven(conn)
+                put_aiven(conn)
                 logger.warning(f"keepalive_bdd: AIVEN erreur — {e}")
-                ok = initaiven()
+                ok = init_aiven()
                 results.append(f"🔄 AIVEN réinit: {'✅' if ok else '❌'}")
         else:
             logger.warning("keepalive_bdd: AIVEN down — tentative réinitialisation")
-            ok = initaiven()
+            ok = init_aiven()
             results.append(f"🔄 AIVEN réinit: {'✅' if ok else '❌'}")
 
         # --- Test Neon ---
-        conn_n = getneon()
+        conn_n = get_neon()
         if conn_n:
             try:
                 cur_n = conn_n.cursor()
                 cur_n.execute("SELECT 1")
                 cur_n.close()
-                putneon(conn_n)
+                put_neon(conn_n)
                 logger.info("keepalive_bdd: NEON OK")
                 results.append("✅ NEON : OK")
             except Exception as e:
-                putneon(conn_n)
+                put_neon(conn_n)
                 logger.warning(f"keepalive_bdd: NEON erreur — {e}")
-                ok = initneon()
+                ok = init_neon()
                 results.append(f"🔄 NEON réinit: {'✅' if ok else '❌'}")
         else:
             logger.warning("keepalive_bdd: NEON down — tentative réinitialisation")
-            ok = initneon()
+            ok = init_neon()
             results.append(f"🔄 NEON réinit: {'✅' if ok else '❌'}")
 
         logger.info(f"keepalive_bdd terminé: {' | '.join(results)}")
@@ -689,7 +696,7 @@ class BotGestion(commands.Cog):
         self.bot = bot
         global _bot_instance
         _bot_instance = bot
-        logger.info("✅ BotGestion V3.4 WAKE UP BDD initialisé")
+        logger.info("✅ BotGestion V3.4 initialisé")
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -705,12 +712,11 @@ class BotGestion(commands.Cog):
             rotate_status.start(self.bot)
             logger.info(f"✅ Task rotation démarré (intervalle: {interval}min)")
 
-        # NOUVEAU V3.4 : Démarrer le keepalive BDD
         if not keepalive_bdd.is_running():
             keepalive_bdd.start(self.bot)
             logger.info("✅ Task keepalive_bdd démarré (ping BDD toutes les heures)")
 
-        logger.info("🎭 BotGestion V3.4 WAKE UP BDD prêt !")
+        logger.info("🎭 BotGestion V3.4 prêt !")
 
 async def setup(bot):
     await bot.add_cog(BotGestion(bot))
