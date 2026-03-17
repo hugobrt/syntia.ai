@@ -836,7 +836,7 @@ class SyntiaBot(commands.Bot):
             except Exception as e:
                 logger.error(f"⚠️ Erreur {ext}: {e}")
             try:
-                from COG CY import ModerationExtra, Music, AutoMod, Economy, Profiles
+                from COG_CY import ModerationExtra, Music, AutoMod, Economy, Profiles
                 await self.add_cog(ModerationExtra(self))
                 await self.add_cog(Music(self))
                 await self.add_cog(AutoMod(self))
