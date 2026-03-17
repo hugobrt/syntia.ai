@@ -835,6 +835,16 @@ class SyntiaBot(commands.Bot):
                 logger.info(f"✅ {ext}.py chargé")
             except Exception as e:
                 logger.error(f"⚠️ Erreur {ext}: {e}")
+            try:
+                from COG CY import ModerationExtra, Music, AutoMod, Economy, Profiles
+                await self.add_cog(ModerationExtra(self))
+                await self.add_cog(Music(self))
+                await self.add_cog(AutoMod(self))
+                await self.add_cog(Economy(self))
+                await self.add_cog(Profiles(self))
+                logger.info("✅ Cogs merged chargés !")
+            except Exception as e:
+                logger.error(f"⚠️ Erreur merged_cogs: {e}")  
         await self.tree.sync()
         logger.info("🔄 Commandes synchronisées")
 
