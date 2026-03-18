@@ -21,6 +21,17 @@ import json, os, random, asyncio, yt_dlp, re
 #  CONFIGURATION GLOBALE
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+# CONNEXION AIVEN (BDD partagée avec bot2)
+# ═══════════════════════════════════════════════════════════════════════════
+
+try:
+    from bot2 import get_economy as _get_eco, update_economy as _save_eco, aiven_pool
+    _AIVEN = True
+except ImportError:
+    _AIVEN = False
+    aiven_pool = None
+
 DATA_DIR = "panel_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -270,7 +281,11 @@ MISSIONS_POOL = [
 ]
 
 def get_user(guild_id, user_id):
-    """Récupère ou crée un profil utilisateur"""
+    """Récupère le profil eco depuis Aiven (ou JSON fallback)"""
+    if _AIVEN:
+        u = _get_eco(user_id)
+        if u:
+            return u
     data = load_json(ECONOMY_FILE, {})
     key = f"{guild_id}:{user_id}"
     if key not in data:
@@ -281,17 +296,20 @@ def get_user(guild_id, user_id):
     return data[key]
 
 def save_user(guild_id, user_id, user_data):
-    """Sauvegarde un profil utilisateur"""
+    """Sauvegarde le profil eco dans Aiven (ou JSON fallback)"""
+    if _AIVEN:
+        _save_eco(user_id, user_data)
+        return
     data = load_json(ECONOMY_FILE, {})
     data[f"{guild_id}:{user_id}"] = user_data
     save_json(ECONOMY_FILE, data)
 
 def add_coins(guild_id, user_id, amount):
-    """Ajoute des coins à un utilisateur"""
+    """Ajoute des coins à un utilisateur (Aiven ou JSON)"""
     u = get_user(guild_id, user_id)
-    u["coins"] += amount
+    u["coins"] = u.get("coins", 0) + amount
     if amount > 0:
-        u["total_earned"] += amount
+        u["total_earned"] = u.get("total_earned", 0) + amount
     save_user(guild_id, user_id, u)
     return u["coins"]
 
@@ -371,16 +389,42 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="classement", description="Top 10 des plus riches")
     async def classement(self, i: discord.Interaction):
-        data = load_json(ECONOMY_FILE, {})
-        guild_data = [(k.split(":")[1], v) for k, v in data.items() if k.startswith(str(i.guild.id))]
-        guild_data.sort(key=lambda x: x[1]["coins"]+x[1]["bank"], reverse=True)
         embed = discord.Embed(title="🏆 Top Richesses", color=0xFFD700)
         medals = ["🥇","🥈","🥉"]
-        for idx, (uid, u) in enumerate(guild_data[:10]):
-            member = i.guild.get_member(int(uid))
-            name = member.display_name if member else f"({uid})"
+        rows = []
+        # Essai Aiven direct
+        if _AIVEN and aiven_pool:
+            try:
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                member_ids = [m.id for m in i.guild.members if not m.bot]
+                if member_ids:
+                    conn = aiven_pool.getconn()
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
+                    placeholders = ",".join(["%s"] * len(member_ids))
+                    cur.execute(
+                        f"SELECT user_id, coins, bank FROM economy WHERE user_id IN ({placeholders}) ORDER BY (coins+bank) DESC LIMIT 10",
+                        member_ids
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
+                    cur.close()
+                    aiven_pool.putconn(conn)
+            except Exception as e:
+                print(f"Classement Aiven erreur: {e}")
+        # Fallback JSON
+        if not rows:
+            data = load_json(ECONOMY_FILE, {})
+            guild_data = [(k.split(":")[1], v) for k, v in data.items() if k.startswith(str(i.guild.id))]
+            guild_data.sort(key=lambda x: x[1].get("coins",0)+x[1].get("bank",0), reverse=True)
+            rows = [{"user_id": int(uid), "coins": v.get("coins",0), "bank": v.get("bank",0)} for uid, v in guild_data[:10]]
+        for idx, r in enumerate(rows):
+            member = i.guild.get_member(int(r["user_id"]))
+            name = member.display_name if member else f"({r['user_id']})"
+            total = r.get("coins", 0) + r.get("bank", 0)
             embed.add_field(name=f"{medals[idx] if idx<3 else f'#{idx+1}'} {name}",
-                value=f"**{u['coins']+u['bank']:,}** coins", inline=False)
+                value=f"**{total:,}** coins", inline=False)
+        if not rows:
+            embed.description = "Aucune donnée disponible."
         await i.response.send_message(embed=embed)
 
 class MusicQueue:
@@ -847,7 +891,7 @@ class Profiles(commands.Cog):
     async def profil(self, i: discord.Interaction, membre: discord.Member = None):
         target = membre or i.user
         p = get_profile(i.guild.id, target.id)
-        eco = load_json(ECONOMY_FILE, {}).get(f"{i.guild.id}:{target.id}", {})
+        eco = get_user(i.guild.id, target.id)
         try:
             color = int(p.get("color", "5865F2"), 16)
         except:
