@@ -829,7 +829,7 @@ class SyntiaBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        for ext in ["panel", "bot_gestion"]:
+        for ext in ["panel", "bot_gestion", "COG_CY"]:
             try:
                 await self.load_extension(ext)
                 logger.info(f"✅ {ext}.py chargé")
