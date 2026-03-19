@@ -26,10 +26,19 @@ import json, os, random, asyncio, yt_dlp, re
 # ═══════════════════════════════════════════════════════════════════════════
 
 try:
-    from bot2 import get_economy as _get_eco, update_economy as _save_eco, aivenpool as aiven_pool
+    from bot2 import (
+        get_economy    as _get_eco,
+        update_economy as _save_eco,
+        get_aiven      as _get_aiven_conn,
+        put_aiven      as _put_aiven_conn,
+        get_neon       as _get_neon_conn,
+        put_neon       as _put_neon_conn,
+    )
     _AIVEN = True
-except ImportError:
+except Exception as _import_err:
+    print(f"[COG_CY] Import bot2 échoué : {_import_err}")
     _AIVEN = False
+    _get_aiven_conn = _put_aiven_conn = _get_neon_conn = _put_neon_conn = None
     aiven_pool = None
 
 DATA_DIR = "panel_data"
@@ -335,38 +344,94 @@ def add_coins(guild_id, user_id, amount):
     save_user(guild_id, user_id, u)
     return u["coins"]
 
+def _ensure_missions_table():
+    if not _AIVEN or not _get_neon_conn: return
+    conn = _get_neon_conn()
+    if not conn: return
+    try:
+        cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS missions (
+            guild_id BIGINT, user_id BIGINT, date DATE,
+            missions_json TEXT DEFAULT '[]',
+            PRIMARY KEY (guild_id, user_id, date))""")
+        conn.commit(); cur.close()
+    except Exception as e:
+        print(f"[COG_CY] ensure_missions_table: {e}")
+    finally:
+        _put_neon_conn(conn)
+
+_missions_table_ready = False
+
 def get_user_missions(guild_id, user_id):
-    """Récupère ou génère les missions du jour"""
+    """Récupère ou génère les missions du jour (Neon DB ou JSON fallback)."""
+    global _missions_table_ready
+    import json as _json
+    today = datetime.now().strftime("%Y-%m-%d")
+    if _AIVEN and _get_neon_conn:
+        if not _missions_table_ready:
+            _ensure_missions_table(); _missions_table_ready = True
+        conn = _get_neon_conn()
+        if conn:
+            try:
+                from psycopg2.extras import RealDictCursor
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT missions_json FROM missions WHERE guild_id=%s AND user_id=%s AND date=%s",
+                            (guild_id, user_id, today))
+                row = cur.fetchone()
+                if row:
+                    cur.close(); _put_neon_conn(conn)
+                    return _json.loads(row["missions_json"])
+                selected = random.sample(MISSIONS_POOL, min(3, len(MISSIONS_POOL)))
+                missions = [{**m, "progress": 0, "done": False} for m in selected]
+                cur.execute("INSERT INTO missions (guild_id, user_id, date, missions_json) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                            (guild_id, user_id, today, _json.dumps(missions)))
+                conn.commit(); cur.close(); _put_neon_conn(conn)
+                return missions
+            except Exception as e:
+                print(f"[COG_CY] get_user_missions Neon: {e}")
+                try: _put_neon_conn(conn)
+                except: pass
     data = load_json(MISSIONS_FILE, {})
     key = f"{guild_id}:{user_id}"
-    today = datetime.now().strftime("%Y-%m-%d")
     if key not in data or data[key].get("date") != today:
         selected = random.sample(MISSIONS_POOL, min(3, len(MISSIONS_POOL)))
         data[key] = {"date": today, "missions": [{**m, "progress": 0, "done": False} for m in selected]}
         save_json(MISSIONS_FILE, data)
     return data[key]["missions"]
 
+
 def update_mission_progress(guild_id, user_id, mission_type, amount=1):
-    """Met à jour la progression des missions (auto-génère si pas encore créées)"""
+    """Update missions (Neon DB ou JSON). Auto-génère si absent."""
+    import json as _json
     today = datetime.now().strftime("%Y-%m-%d")
-    data = load_json(MISSIONS_FILE, {})
-    key = f"{guild_id}:{user_id}"
-    # Auto-générer les missions du jour si elles n'existent pas encore
-    if key not in data or data[key].get("date") != today:
-        get_user_missions(guild_id, user_id)
-        data = load_json(MISSIONS_FILE, {})  # recharger après génération
-    if key not in data:
-        return []
-    rewards_given = []
-    for m in data[key]["missions"]:
+    missions = get_user_missions(guild_id, user_id)
+    rewards_given = []; changed = False
+    for m in missions:
         if m["type"] == mission_type and not m["done"]:
             m["progress"] = min(m["progress"] + amount, m["goal"])
             if m["progress"] >= m["goal"]:
-                m["done"] = True
-                add_coins(guild_id, user_id, m["reward"])
-                rewards_given.append(m)
-    save_json(MISSIONS_FILE, data)
+                m["done"] = True; add_coins(guild_id, user_id, m["reward"]); rewards_given.append(m)
+            changed = True
+    if not changed: return rewards_given
+    if _AIVEN and _get_neon_conn:
+        conn = _get_neon_conn()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("UPDATE missions SET missions_json=%s WHERE guild_id=%s AND user_id=%s AND date=%s",
+                            (_json.dumps(missions), guild_id, user_id, today))
+                conn.commit(); cur.close(); _put_neon_conn(conn)
+                return rewards_given
+            except Exception as e:
+                print(f"[COG_CY] update_mission_progress Neon: {e}")
+                try: _put_neon_conn(conn)
+                except: pass
+    data = load_json(MISSIONS_FILE, {})
+    key = f"{guild_id}:{user_id}"
+    if key in data:
+        data[key]["missions"] = missions; save_json(MISSIONS_FILE, data)
     return rewards_given
+
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -377,6 +442,16 @@ class Economy(commands.Cog):
         if msg.author.bot or not msg.guild:
             return
         update_mission_progress(msg.guild.id, msg.author.id, "messages")
+
+    @commands.Cog.listener()
+    async def on_daily_used(self, guild_id: int, user_id: int):
+        """Déclenché par bot2 après un /daily réussi."""
+        update_mission_progress(guild_id, user_id, "daily")
+
+    @commands.Cog.listener()
+    async def on_work_used(self, guild_id: int, user_id: int):
+        """Déclenché par bot2 après un /work réussi."""
+        update_mission_progress(guild_id, user_id, "work")
 
     @app_commands.command(name="voler", description="Tenter de voler un membre")
     async def voler(self, i: discord.Interaction, cible: discord.Member):
@@ -416,20 +491,37 @@ class Economy(commands.Cog):
     @app_commands.command(name="classement", description="Top 10 des plus riches")
     async def classement(self, i: discord.Interaction):
         await i.response.defer()
-        # Utilise get_user() qui gère Aiven ET JSON automatiquement
         leaderboard = []
-        for m in i.guild.members:
-            if m.bot:
-                continue
-            u = get_user(i.guild.id, m.id)
-            total = u.get("coins", 0) + u.get("bank", 0)
-            leaderboard.append((m, total))
+        if _AIVEN and _get_aiven_conn:
+            conn = _get_aiven_conn()
+            if conn:
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    member_ids = [m.id for m in i.guild.members if not m.bot]
+                    if member_ids:
+                        phs = ",".join(["%s"] * len(member_ids))
+                        cur = conn.cursor(cursor_factory=RealDictCursor)
+                        cur.execute(f"SELECT userid, coins, bank FROM economy WHERE userid IN ({phs}) ORDER BY (coins+bank) DESC LIMIT 10", member_ids)
+                        for r in cur.fetchall():
+                            mb = i.guild.get_member(int(r["userid"]))
+                            name = mb.display_name if mb else f"(id:{r['userid']})"
+                            leaderboard.append((name, r.get("coins",0) + r.get("bank",0)))
+                        cur.close()
+                except Exception as e:
+                    print(f"[COG_CY] classement Aiven: {e}")
+                finally:
+                    _put_aiven_conn(conn)
+        if not leaderboard:
+            for m in i.guild.members:
+                if m.bot: continue
+                u = get_user(i.guild.id, m.id)
+                leaderboard.append((m.display_name, u.get("coins",0) + u.get("bank",0)))
         leaderboard.sort(key=lambda x: x[1], reverse=True)
         embed = discord.Embed(title="🏆 Top Richesses", color=0xFFD700)
         medals = ["🥇", "🥈", "🥉"]
-        for idx, (member, total) in enumerate(leaderboard[:10]):
+        for idx, (name, total) in enumerate(leaderboard[:10]):
             embed.add_field(
-                name=f"{medals[idx] if idx < 3 else f'#{idx+1}'} {member.display_name}",
+                name=f"{medals[idx] if idx < 3 else f'#{idx+1}'} {name}",
                 value=f"**{total:,}** coins",
                 inline=False
             )
