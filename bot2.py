@@ -835,16 +835,6 @@ class SyntiaBot(commands.Bot):
                 logger.info(f"✅ {ext}.py chargé")
             except Exception as e:
                 logger.error(f"⚠️ Erreur {ext}: {e}")
-            try:
-                from COG_CY import ModerationExtra, Music, AutoMod, Economy, Profiles
-                await self.add_cog(ModerationExtra(self))
-                await self.add_cog(Music(self))
-                await self.add_cog(AutoMod(self))
-                await self.add_cog(Economy(self))
-                await self.add_cog(Profiles(self))
-                logger.info("✅ Cogs merged chargés !")
-            except Exception as e:
-                logger.error(f"⚠️ Erreur merged_cogs: {e}")  
         await self.tree.sync()
         logger.info("🔄 Commandes synchronisées")
 
@@ -982,6 +972,8 @@ async def daily(interaction: discord.Interaction):
     log_transaction(0, interaction.user.id, reward, "daily")
     embed = discord.Embed(title="💵 Daily Reward !", description=f"Tu as reçu **{reward:,}** coins !", color=0x57F287)
     await interaction.response.send_message(embed=embed)
+    if interaction.guild:
+        client.dispatch("daily_used", interaction.guild.id, interaction.user.id)
 
 @client.tree.command(name="work", description="💼 Travailler pour gagner des coins")
 async def work(interaction: discord.Interaction):
@@ -1005,6 +997,8 @@ async def work(interaction: discord.Interaction):
     log_transaction(0, interaction.user.id, reward, "work", job)
     embed = discord.Embed(title="💼 Travail !", description=f"Tu as travaillé comme **{job}** et gagné **{reward:,}** coins !", color=0x5865F2)
     await interaction.response.send_message(embed=embed)
+    if interaction.guild:
+        client.dispatch("work_used", interaction.guild.id, interaction.user.id)
 
 @client.tree.command(name="deposit", description="🏦 Déposer des coins à la banque")
 async def deposit(interaction: discord.Interaction, montant: str):
