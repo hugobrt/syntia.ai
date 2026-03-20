@@ -862,11 +862,39 @@ async def veille_rss():
             if not latest_link or latest_link == feed_data.get('last_link'):
                 continue
             update_rss_last_link(feed_data['id'], latest_link)
-            embed = discord.Embed(
-                title=feed.feed.get('title', feed_data.get('title', 'Actualité')),
-                description=f"**[{latest.get('title', 'Article')}]({latest_link})**",
-                color=0x0055ff,
-                timestamp=datetime.now()
+# ====================================================
+# RSS embded
+# ====================================================
+# Récupérer l'image de l'article si disponible
+article_image = None
+if latest.get('media_content'):
+    article_image = latest['media_content'][0].get('url')
+elif latest.get('media_thumbnail'):
+    article_image = latest['media_thumbnail'][0].get('url')
+
+embed = discord.Embed(
+    title=latest.get('title', 'Article'),
+    url=latest_link,
+    description=latest.get('summary', '')[:300] or None,
+    color=0x0055ff,
+    timestamp=datetime.now()
+)
+
+# "aibusiness" au-dessus = nom de la source
+embed.set_author(name=feed.feed.get('title', feed_data.get('title', 'Actualité')))
+
+# "Graham Hope" = auteur de l'article
+article_author = latest.get('author', '')
+if article_author:
+    embed.add_field(name="", value=f"*{article_author}*", inline=False)
+
+# Image de l'article
+if article_image:
+    embed.set_image(url=article_image)
+
+# Footer style "Powered by Readybot.io | date"
+embed.set_footer(text="Powered by Syntia.AI")
+            
             )
             target_channel = client.get_channel(feed_data.get('channel_id') or ID_SALON_RSS)
             if target_channel:
