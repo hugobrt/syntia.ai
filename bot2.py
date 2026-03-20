@@ -894,7 +894,6 @@ if article_image:
 
 # Footer style "Powered by Readybot.io | date"
 embed.set_footer(text="Powered by Syntia.AI")
-            
             )
             target_channel = client.get_channel(feed_data.get('channel_id') or ID_SALON_RSS)
             if target_channel:
