@@ -979,6 +979,12 @@ class RSSView(discord.ui.View):
     @discord.ui.button(label="Tester Flux", style=discord.ButtonStyle.primary, row=1, emoji="🔍", custom_id="rss_test")
     async def test_rss(self, i, b): await i.response.send_modal(RSSTestModal())
 
+    @discord.ui.button(label="Prévisualiser", style=discord.ButtonStyle.success, row=1, emoji="👁️", custom_id="rss_preview")
+    async def preview_rss(self, i, b):
+        view = discord.ui.View(timeout=60)
+        view.add_item(RSSPreviewSelect())
+        await i.response.send_message("📰 Quel flux veux-tu prévisualiser ?", view=view, ephemeral=True)
+    
     @discord.ui.button(label="Retour", style=discord.ButtonStyle.secondary, row=1, emoji="🔙", custom_id="rss_back")
     async def back(self, i, b):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
