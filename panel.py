@@ -944,6 +944,66 @@ class ConfigView(discord.ui.View):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
         await i.response.edit_message(embed=embed, view=MainPanelView())
 
+class RSSPreviewSelect(discord.ui.Select):
+    def __init__(self):
+        try:
+            from bot2 import get_rss_feeds as bot_feeds
+            feeds = bot_feeds()
+        except ImportError:
+            feeds = get_rss_feeds()
+        options = []
+        for f in feeds[:25]:
+            if isinstance(f, dict):
+                label = (f.get("title") or f.get("url", "?"))[:90]
+                value = f.get("url", "")[:100]
+            else:
+                label = str(f)[:90]
+                value = str(f)[:100]
+            if value:
+                options.append(discord.SelectOption(label=label, value=value))
+        if not options:
+            options = [discord.SelectOption(label="Aucun flux configuré", value="none")]
+        super().__init__(placeholder="Choisir un flux à prévisualiser...", options=options)
+
+    async def callback(self, i: discord.Interaction):
+        if self.values[0] == "none":
+            await i.response.send_message("Aucun flux configuré !", ephemeral=True)
+            return
+        await i.response.defer(ephemeral=True)
+        try:
+            feed = feedparser.parse(self.values[0])
+            if not feed.entries:
+                await i.followup.send("❌ Flux vide ou inaccessible !", ephemeral=True)
+                return
+            latest = feed.entries[0]
+            latest_link = latest.get("link", "")
+            article_image = None
+            if latest.get("media_content"):
+                article_image = latest["media_content"][0].get("url")
+            elif latest.get("media_thumbnail"):
+                article_image = latest["media_thumbnail"][0].get("url")
+            embed = discord.Embed(
+                title=latest.get("title", "Article"),
+                url=latest_link,
+                description=(latest.get("summary", "") or "")[:300] or None,
+                color=0x0055ff,
+                timestamp=datetime.now()
+            )
+            embed.set_author(name=feed.feed.get("title", "Actualité"))
+            article_author = latest.get("author", "")
+            if article_author:
+                embed.add_field(name="", value=f"*{article_author}*", inline=False)
+            if article_image:
+                embed.set_image(url=article_image)
+            embed.set_footer(text="Powered by Syntia.AI")
+            await i.followup.send(content="👁️ **Prévisualisation :**", embed=embed, ephemeral=True)
+        except Exception as e:
+            await i.followup.send(f"❌ Erreur: {str(e)[:200]}", ephemeral=True)
+
+class RSSView(discord.ui.View):   # ← déjà dans ton fichier
+    ...
+
+
 class RSSView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
 
