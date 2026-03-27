@@ -119,6 +119,12 @@ def init_aiven():
             active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""")
+        
+        cur.execute("""
+            ALTER TABLE market_items 
+            ADD COLUMN IF NOT EXISTS reward_type TEXT DEFAULT 'none',
+            ADD COLUMN IF NOT EXISTS reward_value TEXT DEFAULT ''
+        """)
 
         cur.execute("""CREATE TABLE IF NOT EXISTS user_inventory (
             id SERIAL PRIMARY KEY,
