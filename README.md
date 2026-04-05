@@ -9,6 +9,8 @@
 
 🌐 **Site Web & Documentation :** [https://syntia-ai.drt-hbr.sbs](https://syntia-ai.drt-hbr.sbs)
 
+to-do future maj : 
+- add connexions système bourse
 ---
 
 ## 📜 À propos
