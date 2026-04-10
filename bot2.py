@@ -522,6 +522,22 @@ def test_rss_feed(url: str) -> tuple:
     except Exception as e:
         return False, {"error": str(e)[:200]}
 
+RSS_PAUSE_FILE = os.path.join("panel_data", "rss_paused.json")
+
+def is_rss_paused() -> bool:
+    try:
+        with open(RSS_PAUSE_FILE, "r") as f:
+            return json.load(f).get("paused", False)
+    except:
+        return False
+
+def set_rss_paused(state: bool):
+    try:
+        with open(RSS_PAUSE_FILE, "w") as f:
+            json.dump({"paused": state}, f)
+    except Exception as e:
+        logger.error(f"set_rss_paused error: {e}")
+      
 # ====================================================
 # MARKET (AIVEN)
 # ====================================================
@@ -852,6 +868,7 @@ client = SyntiaBot()
 
 @tasks.loop(minutes=30)
 async def veille_rss():
+    if is_rss_paused():
     feeds = get_rss_feeds()
     if not feeds:
         return
