@@ -1,7 +1,7 @@
 """
 INFINITY PANEL V46 ULTIMATE FINAL
 made with love
-Version: 18/02 — PATCHE: ChannelSelect config + Nuke refresh
+Version: 18/02 — PATCHE: ChannelSelect config + Nuke refresh + RSS Pause
 """
 
 import discord
@@ -37,6 +37,7 @@ REMINDERS_FILE = os.path.join(DATA_DIR, "reminders.json")
 BACKUPS_DIR = os.path.join(DATA_DIR, "backups")
 CONFIG_FILE = os.path.join(DATA_DIR, "server_config.json")
 EMBED_TEMPLATES_FILE = os.path.join(DATA_DIR, "embed_templates.json")
+RSS_PAUSE_FILE = os.path.join(DATA_DIR, "rss_paused.json")  # NOUVEAU
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(BACKUPS_DIR, exist_ok=True)
@@ -45,7 +46,7 @@ os.makedirs(BACKUPS_DIR, exist_ok=True)
 # FONCTIONS UTILITAIRES
 # ====================================================
 
-def save_json(filepath: str, data: any) -> bool:
+def save_json(filepath: str, data) -> bool:
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -54,7 +55,7 @@ def save_json(filepath: str, data: any) -> bool:
         logger.error(f"Erreur sauvegarde {filepath}: {e}")
         return False
 
-def load_json(filepath: str, default: any = None) -> any:
+def load_json(filepath: str, default=None):
     try:
         if os.path.exists(filepath):
             with open(filepath, "r", encoding="utf-8") as f:
@@ -81,12 +82,30 @@ def get_server_config(guild_id: int) -> dict:
         save_json(CONFIG_FILE, configs)
     return configs[str(guild_id)]
 
-def set_server_config(guild_id: int, key: str, value: any):
+def set_server_config(guild_id: int, key: str, value):
     configs = load_json(CONFIG_FILE, {})
     if str(guild_id) not in configs:
         configs[str(guild_id)] = {}
     configs[str(guild_id)][key] = value
     save_json(CONFIG_FILE, configs)
+
+# ====================================================
+# RSS PAUSE — NOUVEAU
+# ====================================================
+
+def is_rss_paused() -> bool:
+    try:
+        with open(RSS_PAUSE_FILE, "r") as f:
+            return json.load(f).get("paused", False)
+    except:
+        return False
+
+def set_rss_paused(state: bool):
+    try:
+        with open(RSS_PAUSE_FILE, "w") as f:
+            json.dump({"paused": state}, f)
+    except Exception as e:
+        logger.error(f"set_rss_paused error: {e}")
 
 # ====================================================
 # RSS (PostgreSQL ou JSON)
@@ -267,10 +286,10 @@ def get_user_info_embed(user: discord.Member) -> discord.Embed:
         elif isinstance(act, discord.CustomActivity) and act.name:
             general.append(f"**Statut perso:** {act.name}")
     embed.add_field(name="Informations Generales", value="\n".join(general), inline=False)
-    dates = [f"**Compte cree:** <t:{int(user.created_at.timestamp())}:R>",
+    dates = [f"**Compte cree:** <t:{int(user.created_at.timestamp())}:D>",
              f"**Date exacte:** <t:{int(user.created_at.timestamp())}:F>"]
     if user.joined_at:
-        dates.append(f"**A rejoint:** <t:{int(user.joined_at.timestamp())}:R>")
+        dates.append(f"**A rejoint:** <t:{int(user.joined_at.timestamp())}:D>")
         days = (datetime.now(user.joined_at.tzinfo) - user.joined_at).days
         dates.append(f"**Present depuis:** {days} jours")
     embed.add_field(name="Dates", value="\n".join(dates), inline=False)
@@ -302,7 +321,7 @@ def get_user_info_embed(user: discord.Member) -> discord.Embed:
         embed.add_field(name="Badges", value="\n".join(badges), inline=False)
     if user.premium_since:
         days = (datetime.now(user.premium_since.tzinfo) - user.premium_since).days
-        embed.add_field(name="Server Booster", value=f"Boost depuis: <t:{int(user.premium_since.timestamp())}:R>\nDuree: {days} jours", inline=False)
+        embed.add_field(name="Server Booster", value=f"Boost depuis: <t:{int(user.premium_since.timestamp())}:D>\nDuree: {days} jours", inline=False)
     other = [f"**Bot:** {'Oui' if user.bot else 'Non'}"]
     if user.voice:
         other.append(f"**Vocal:** {user.voice.channel.mention}")
@@ -334,7 +353,7 @@ class EmbedAdvancedModal(discord.ui.Modal, title="Embed Creator V46"):
             except:
                 color = 0x2b2d31
         embed = discord.Embed(title=self.title_input.value or None, description=self.description.value or None,
-                               color=color, url=self.url.value or None)
+                              color=color, url=self.url.value or None)
         if self.footer.value:
             embed.set_footer(text=self.footer.value)
         embed.timestamp = datetime.now()
@@ -397,17 +416,17 @@ class EmbedButtonModal(discord.ui.Modal, title="Ajouter un Bouton"):
         elif btn_type in ["role"]:
             try:
                 view.add_item(discord.ui.Button(label=self.label.value, style=discord.ButtonStyle.success,
-                                                 custom_id=f"act:role:{int(self.value.value)}", emoji=self.emoji.value or None))
+                                                custom_id=f"act:role:{int(self.value.value)}", emoji=self.emoji.value or None))
                 await self.channel.send(embed=self.embed, view=view)
             except:
                 await i.response.send_message("ID role invalide !", ephemeral=True); return
         elif btn_type == "embed":
             view.add_item(discord.ui.Button(label=self.label.value, style=discord.ButtonStyle.primary,
-                                             custom_id=f"act:embed:{self.value.value}", emoji=self.emoji.value or None))
+                                            custom_id=f"act:embed:{self.value.value}", emoji=self.emoji.value or None))
             await self.channel.send(embed=self.embed, view=view)
         else:
             view.add_item(discord.ui.Button(label=self.label.value, style=discord.ButtonStyle.primary,
-                                             custom_id=f"act:msg:{self.value.value}", emoji=self.emoji.value or None))
+                                            custom_id=f"act:msg:{self.value.value}", emoji=self.emoji.value or None))
             await self.channel.send(embed=self.embed, view=view)
         await i.response.send_message("Embed avec bouton envoye !", ephemeral=True)
 
@@ -436,7 +455,7 @@ class EmbedTemplateSelect(discord.ui.Select):
         if template:
             embed = dict_to_embed(template)
             await i.response.send_message(f"Template '{self.values[0]}' charge !", embed=embed,
-                                           view=EmbedCustomizeView(embed, self.channel), ephemeral=True)
+                                          view=EmbedCustomizeView(embed, self.channel), ephemeral=True)
 
 class EmbedCustomizeView(discord.ui.View):
     def __init__(self, embed: discord.Embed, channel: discord.TextChannel):
@@ -599,10 +618,10 @@ class ReminderModal(discord.ui.Modal, title="Creer un Rappel"):
 class EmbedTemplateEditModal(discord.ui.Modal, title="Modifier Template"):
     def __init__(self, template: dict):
         super().__init__()
-        self.template_name = template.get("name","")
+        self.template_name = template.get("name", "")
         self.title_input = discord.ui.TextInput(label="Titre", default=template.get("title") or "", required=False, max_length=256)
         self.desc_input = discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph, default=template.get("description") or "", required=False, max_length=2000)
-        self.color_input = discord.ui.TextInput(label="Couleur (hex sans #)", default=template.get("color","2b2d31"), max_length=6)
+        self.color_input = discord.ui.TextInput(label="Couleur (hex sans #)", default=template.get("color", "2b2d31"), max_length=6)
         self.footer_input = discord.ui.TextInput(label="Footer", default=template.get("footer") or "", required=False, max_length=200)
         self.add_item(self.title_input); self.add_item(self.desc_input)
         self.add_item(self.color_input); self.add_item(self.footer_input)
@@ -636,15 +655,15 @@ class RSSTestModal(discord.ui.Modal, title="Tester un Flux RSS"):
             if feed.entries:
                 latest = feed.entries[0]
                 embed.color = 0x57F287
-                embed.add_field(name="Statut", value="OK - Flux valide !", inline=False)
-                embed.add_field(name="Titre du flux", value=feed.feed.get("title","?")[:100], inline=True)
+                embed.add_field(name="Statut", value="✅ OK - Flux valide !", inline=False)
+                embed.add_field(name="Titre du flux", value=feed.feed.get("title", "?")[:100], inline=True)
                 embed.add_field(name="Nb articles", value=str(len(feed.entries)), inline=True)
-                embed.add_field(name="Dernier article", value=latest.get("title","?")[:100], inline=False)
-                embed.add_field(name="Lien", value=latest.get("link","?")[:200], inline=False)
-                embed.add_field(name="Date", value=str(latest.get("published","Non specifie"))[:50], inline=True)
+                embed.add_field(name="Dernier article", value=latest.get("title", "?")[:100], inline=False)
+                embed.add_field(name="Lien", value=latest.get("link", "?")[:200], inline=False)
+                embed.add_field(name="Date", value=str(latest.get("published", "Non specifie"))[:50], inline=True)
             else:
                 embed.color = 0xED4245
-                embed.add_field(name="Statut", value="ECHEC - Flux vide ou invalide", inline=False)
+                embed.add_field(name="Statut", value="❌ ECHEC - Flux vide ou invalide", inline=False)
                 embed.add_field(name="URL testee", value=url[:200], inline=False)
             await i.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
@@ -662,7 +681,7 @@ class MarketAddItemModal(discord.ui.Modal, title="Ajouter un Article au Marche")
     stock = discord.ui.TextInput(label="Stock (-1 = illimite)", placeholder="-1", max_length=6, default="-1")
     async def on_submit(self, i: discord.Interaction):
         try:
-            price_val = int(self.price.value.replace(",","").replace(" ",""))
+            price_val = int(self.price.value.replace(",", "").replace(" ", ""))
             if price_val <= 0:
                 await i.response.send_message("Prix invalide !", ephemeral=True); return
             stock_val = int(self.stock.value)
@@ -743,8 +762,8 @@ class MarketAdminView(discord.ui.View):
             await i.response.send_message("Aucun article dans le marche", ephemeral=True); return
         embed = discord.Embed(title="Articles du Marche (Admin)", color=0xFFD700)
         for item in items[:15]:
-            stock_txt = "Illimite" if item.get("stock",-1) == -1 else f"Stock: {item['stock']}"
-            status = "Actif" if item.get("active", True) else "Inactif"
+            stock_txt = "Illimite" if item.get("stock", -1) == -1 else f"Stock: {item['stock']}"
+            status = "✅ Actif" if item.get("active", True) else "❌ Inactif"
             embed.add_field(name=f"`#{item['id']}` {item.get('emoji','')} {item['name']}",
                             value=f"{item['price']:,} coins | {item.get('category','?')} | {stock_txt} | {status}", inline=False)
         await i.response.send_message(embed=embed, ephemeral=True)
@@ -768,8 +787,8 @@ class RSSRemoveSelect(discord.ui.Select):
         options = []
         for f in feeds[:25]:
             if isinstance(f, dict):
-                label = (f.get("title") or f.get("url","?"))[:90]
-                value = str(f.get("id") or f.get("url",""))[:100]
+                label = (f.get("title") or f.get("url", "?"))[:90]
+                value = str(f.get("id") or f.get("url", ""))[:100]
             else:
                 label = str(f)[:90]; value = str(f)[:100]
             if value:
@@ -815,7 +834,6 @@ class ChanSel(discord.ui.View):
         elif self.a == "slowmode": await i.response.send_modal(SlowmodeModal(c))
         elif self.a == "reminder": await i.response.send_modal(ReminderModal(c))
         elif self.a == "nuke":
-            # PATCH: edit_message avec nouveau ChanSel pour rafraichir la liste des salons
             nc = await c.clone(reason="Nuke admin")
             await c.delete()
             await nc.send("✨ Salon recree.")
@@ -848,8 +866,7 @@ class UserSel(discord.ui.View):
             await i.response.send_modal(SanctionModal(u, self.a))
 
 # ====================================================
-# PATCH CORRECTIF 1 — Config avec ChannelSelect natif
-# (remplace ConfigTicketModal et ConfigChannelModal)
+# CONFIG AVEC CHANNELSELECT NATIF
 # ====================================================
 
 class ConfigChannelSelect(discord.ui.ChannelSelect):
@@ -944,65 +961,9 @@ class ConfigView(discord.ui.View):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
         await i.response.edit_message(embed=embed, view=MainPanelView())
 
-class RSSPreviewSelect(discord.ui.Select):
-    def __init__(self):
-        try:
-            from bot2 import get_rss_feeds as bot_feeds
-            feeds = bot_feeds()
-        except ImportError:
-            feeds = get_rss_feeds()
-        options = []
-        for f in feeds[:25]:
-            if isinstance(f, dict):
-                label = (f.get("title") or f.get("url", "?"))[:90]
-                value = f.get("url", "")[:100]
-            else:
-                label = str(f)[:90]
-                value = str(f)[:100]
-            if value:
-                options.append(discord.SelectOption(label=label, value=value))
-        if not options:
-            options = [discord.SelectOption(label="Aucun flux configuré", value="none")]
-        super().__init__(placeholder="Choisir un flux à prévisualiser...", options=options)
-
-    async def callback(self, i: discord.Interaction):
-        if self.values[0] == "none":
-            await i.response.send_message("Aucun flux configuré !", ephemeral=True)
-            return
-        await i.response.defer(ephemeral=True)
-        try:
-            feed = feedparser.parse(self.values[0])
-            if not feed.entries:
-                await i.followup.send("❌ Flux vide ou inaccessible !", ephemeral=True)
-                return
-            latest = feed.entries[0]
-            latest_link = latest.get("link", "")
-            article_image = None
-            if latest.get("media_content"):
-                article_image = latest["media_content"][0].get("url")
-            elif latest.get("media_thumbnail"):
-                article_image = latest["media_thumbnail"][0].get("url")
-            embed = discord.Embed(
-                title=latest.get("title", "Article"),
-                url=latest_link,
-                description=(latest.get("summary", "") or "")[:300] or None,
-                color=0x0055ff,
-                timestamp=datetime.now()
-            )
-            embed.set_author(name=feed.feed.get("title", "Actualité"))
-            article_author = latest.get("author", "")
-            if article_author:
-                embed.add_field(name="", value=f"*{article_author}*", inline=False)
-            if article_image:
-                embed.set_image(url=article_image)
-            embed.set_footer(text="Powered by Syntia.AI")
-            await i.followup.send(content="👁️ **Prévisualisation :**", embed=embed, ephemeral=True)
-        except Exception as e:
-            await i.followup.send(f"❌ Erreur: {str(e)[:200]}", ephemeral=True)
-
-class RSSView(discord.ui.View):   # ← déjà dans ton fichier
-    ...
-
+# ====================================================
+# RSS VIEW — avec bouton PAUSE NOUVEAU
+# ====================================================
 
 class RSSView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
@@ -1029,7 +990,7 @@ class RSSView(discord.ui.View):
         for f in feeds[:10]:
             if isinstance(f, dict):
                 name = f.get("title") or "Sans titre"
-                url = f.get("url","?")[:80]
+                url = f.get("url", "?")[:80]
                 last = f.get("last_check") or "Jamais"
                 embed.add_field(name=name, value=f"`{url}`\nDerniere verif: {str(last)[:16]}", inline=False)
             else:
@@ -1039,16 +1000,34 @@ class RSSView(discord.ui.View):
     @discord.ui.button(label="Tester Flux", style=discord.ButtonStyle.primary, row=1, emoji="🔍", custom_id="rss_test")
     async def test_rss(self, i, b): await i.response.send_modal(RSSTestModal())
 
-    @discord.ui.button(label="Prévisualiser", style=discord.ButtonStyle.success, row=1, emoji="👁️", custom_id="rss_preview")
-    async def preview_rss(self, i, b):
-        view = discord.ui.View(timeout=60)
-        view.add_item(RSSPreviewSelect())
-        await i.response.send_message("📰 Quel flux veux-tu prévisualiser ?", view=view, ephemeral=True)
-    
+    @discord.ui.button(label="Pause RSS", style=discord.ButtonStyle.secondary, row=1, emoji="⏸️", custom_id="rss_pause")
+    async def pause_rss(self, i, b):
+        paused = is_rss_paused()
+        set_rss_paused(not paused)
+        if not paused:
+            embed = discord.Embed(
+                title="# ⏸  FEED RSS EN PAUSE",
+                description="Les actualités automatiques sont **suspendues**.
+Appuie sur **▶️ Reprendre** dans le panel pour les réactiver.",
+                color=0x0055ff,
+                timestamp=datetime.now()
+            )
+            embed.set_footer(text=f"Mis en pause par {i.user.display_name}")
+            await i.channel.send(embed=embed)
+            await i.response.send_message("⏸️ RSS mis en **pause** !", ephemeral=True)
+            log_admin_action(i.user.id, "rss_pause", "pause activee")
+        else:
+            await i.response.send_message("▶️ RSS **reactivé** ! Les articles reprendront au prochain cycle (30 min).", ephemeral=True)
+            log_admin_action(i.user.id, "rss_pause", "pause desactivee")
+
     @discord.ui.button(label="Retour", style=discord.ButtonStyle.secondary, row=1, emoji="🔙", custom_id="rss_back")
     async def back(self, i, b):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
         await i.response.edit_message(embed=embed, view=MainPanelView())
+
+# ====================================================
+# BACKUP VIEW
+# ====================================================
 
 class BackupView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
@@ -1073,6 +1052,10 @@ class BackupView(discord.ui.View):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
         await i.response.edit_message(embed=embed, view=MainPanelView())
 
+# ====================================================
+# LOGS VIEW
+# ====================================================
+
 class LogsView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
 
@@ -1096,6 +1079,10 @@ class LogsView(discord.ui.View):
     async def back(self, i, b):
         embed = discord.Embed(title="INFINITY PANEL V46", color=0x2b2d31)
         await i.response.edit_message(embed=embed, view=MainPanelView())
+
+# ====================================================
+# REMINDERS VIEW
+# ====================================================
 
 class RemindersView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
@@ -1133,7 +1120,9 @@ class MainPanelView(discord.ui.View):
 
     @discord.ui.button(label="RSS", style=discord.ButtonStyle.primary, row=0, emoji="📰", custom_id="panel_rss")
     async def rss(self, i, b):
-        await i.response.send_message(embed=discord.Embed(title="Gestion RSS", color=0x0055ff), view=RSSView(), ephemeral=True)
+        paused = is_rss_paused()
+        status = " **(EN PAUSE)**" if paused else ""
+        await i.response.send_message(embed=discord.Embed(title=f"Gestion RSS{status}", color=0x0055ff), view=RSSView(), ephemeral=True)
 
     @discord.ui.button(label="Backup", style=discord.ButtonStyle.primary, row=0, emoji="💾", custom_id="panel_backup")
     async def backup(self, i, b):
