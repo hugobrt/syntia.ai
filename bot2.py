@@ -869,7 +869,7 @@ client = SyntiaBot()
 @tasks.loop(minutes=30)
 async def veille_rss():
     if is_rss_paused():
-    feeds = get_rss_feeds()
+        feeds = get_rss_feeds()
     if not feeds:
         return
     channel = client.get_channel(ID_SALON_RSS)
