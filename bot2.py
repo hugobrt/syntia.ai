@@ -522,6 +522,7 @@ def test_rss_feed(url: str) -> tuple:
     except Exception as e:
         return False, {"error": str(e)[:200]}
 
+os.makedirs("panel_data", exist_ok=True)
 RSS_PAUSE_FILE = os.path.join("panel_data", "rss_paused.json")
 
 def is_rss_paused() -> bool:
@@ -869,7 +870,9 @@ client = SyntiaBot()
 @tasks.loop(minutes=30)
 async def veille_rss():
     if is_rss_paused():
-        feeds = get_rss_feeds()
+        logger.info("veille_rss: RSS en pause, skip.")
+        return
+    feeds = get_rss_feeds()
     if not feeds:
         return
     channel = client.get_channel(ID_SALON_RSS)
