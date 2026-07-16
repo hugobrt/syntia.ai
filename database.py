@@ -1,152 +1,196 @@
 """
-Connexion et pool de base de données (Postgres).
-Un seul pool partagé, utilisé par le bot ET par l'API.
+Connexion et accès à la base de données (SQLite).
+Un seul fichier .db, partagé par le bot ET l'API puisqu'ils tournent
+dans le même service/processus.
+
+Toutes les fonctions sont async (via aiosqlite) même si SQLite est
+techniquement synchrone en interne : ça garde une API cohérente et
+évite de bloquer la boucle événementielle du bot sur les I/O disque.
 """
 
 import os
+import json
 import logging
-import asyncpg
+import asyncio
+from contextlib import asynccontextmanager
+
+import aiosqlite
 
 logger = logging.getLogger("Database")
 
-_pool: asyncpg.Pool | None = None
+DB_PATH = os.getenv("DB_PATH", "data/bot.db")
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # postgres://user:pass@host:port/dbname
-
-
-async def init_pool() -> asyncpg.Pool:
-    """Crée (ou réutilise) le pool de connexions."""
-    global _pool
-    if _pool is not None:
-        return _pool
-
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL n'est pas défini dans l'environnement.")
-
-    _pool = await asyncpg.create_pool(
-        dsn=DATABASE_URL,
-        min_size=1,
-        max_size=10,
-        command_timeout=30,
-    )
-    logger.info("Pool de connexions Postgres initialisé.")
-    await run_migrations(_pool)
-    return _pool
+_lock = asyncio.Lock()  # SQLite n'aime pas les écritures concurrentes non sérialisées
+_conn: aiosqlite.Connection | None = None
 
 
-def get_pool() -> asyncpg.Pool:
-    if _pool is None:
-        raise RuntimeError("Le pool n'est pas encore initialisé, appelle init_pool() d'abord.")
-    return _pool
+async def init_db() -> aiosqlite.Connection:
+    global _conn
+    if _conn is not None:
+        return _conn
+
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+
+    _conn = await aiosqlite.connect(DB_PATH)
+    _conn.row_factory = aiosqlite.Row
+    await _conn.execute("PRAGMA journal_mode=WAL;")   # meilleure tolérance lecture/écriture simultanées
+    await _conn.execute("PRAGMA foreign_keys=ON;")
+    await _conn.commit()
+
+    await run_migrations(_conn)
+    logger.info(f"Base de données SQLite initialisée ({DB_PATH}).")
+    return _conn
 
 
-async def close_pool():
-    global _pool
-    if _pool is not None:
-        await _pool.close()
-        _pool = None
-        logger.info("Pool de connexions Postgres fermé.")
+def get_db() -> aiosqlite.Connection:
+    if _conn is None:
+        raise RuntimeError("La BDD n'est pas encore initialisée, appelle init_db() d'abord.")
+    return _conn
+
+
+async def close_db():
+    global _conn
+    if _conn is not None:
+        await _conn.close()
+        _conn = None
+        logger.info("Connexion BDD fermée.")
+
+
+@asynccontextmanager
+async def transaction():
+    """Sérialise les écritures pour éviter les 'database is locked' de SQLite."""
+    async with _lock:
+        conn = get_db()
+        try:
+            yield conn
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+
+
+async def fetch_one(query: str, params: tuple = ()) -> dict | None:
+    conn = get_db()
+    async with conn.execute(query, params) as cursor:
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def fetch_all(query: str, params: tuple = ()) -> list[dict]:
+    conn = get_db()
+    async with conn.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def execute(query: str, params: tuple = ()) -> int:
+    """Exécute un INSERT/UPDATE/DELETE. Retourne lastrowid (utile pour les INSERT)."""
+    async with transaction() as conn:
+        cursor = await conn.execute(query, params)
+        return cursor.lastrowid
+
+
+def to_json(value) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def from_json(value, default=None):
+    if value is None:
+        return default if default is not None else {}
+    return json.loads(value)
 
 
 SCHEMA = """
--- Configuration par serveur (un seul serveur au départ, mais on garde guild_id pour être générique)
 CREATE TABLE IF NOT EXISTS server_config (
-    guild_id BIGINT PRIMARY KEY,
-    rules_channel_id BIGINT,
-    welcome_channel_id BIGINT,
-    member_role_id BIGINT,
-    jobs_channel_id BIGINT,
-    mod_log_channel_id BIGINT,
-    application_log_channel_id BIGINT,
-    settings JSONB NOT NULL DEFAULT '{}'::jsonb,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    guild_id INTEGER PRIMARY KEY,
+    rules_channel_id INTEGER,
+    welcome_channel_id INTEGER,
+    member_role_id INTEGER,
+    jobs_channel_id INTEGER,
+    mod_log_channel_id INTEGER,
+    application_log_channel_id INTEGER,
+    settings TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Suivi des membres (acceptation du règlement, etc.)
 CREATE TABLE IF NOT EXISTS members (
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    rules_accepted_at TIMESTAMPTZ,
+    guild_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+    rules_accepted_at TEXT,
     notes TEXT,
     PRIMARY KEY (guild_id, user_id)
 );
 
--- Logs de modération
 CREATE TABLE IF NOT EXISTS mod_logs (
-    id SERIAL PRIMARY KEY,
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    moderator_id BIGINT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    moderator_id INTEGER NOT NULL,
     action TEXT NOT NULL,          -- warn / kick / ban / unban / mute / unmute
     reason TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Appels de ban
 CREATE TABLE IF NOT EXISTS ban_appeals (
-    id SERIAL PRIMARY KEY,
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',  -- pending / accepted / refused
-    handled_by BIGINT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    handled_at TIMESTAMPTZ
+    handled_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    handled_at TEXT
 );
 
--- Profils
 CREATE TABLE IF NOT EXISTS profiles (
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    guild_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     bio TEXT,
     color TEXT,
     banner_url TEXT,
-    badges JSONB NOT NULL DEFAULT '[]'::jsonb,
+    badges TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY (guild_id, user_id)
 );
 
--- Offres d'emploi
 CREATE TABLE IF NOT EXISTS job_offers (
-    id SERIAL PRIMARY KEY,
-    guild_id BIGINT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    role_id BIGINT,               -- rôle donné si recruté
-    posted_by BIGINT NOT NULL,
+    role_id INTEGER,
+    posted_by INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'open',   -- open / closed
-    message_id BIGINT,
-    channel_id BIGINT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    message_id INTEGER,
+    channel_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Candidatures
 CREATE TABLE IF NOT EXISTS job_applications (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_id INTEGER NOT NULL REFERENCES job_offers(id) ON DELETE CASCADE,
-    guild_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+    guild_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    answers TEXT NOT NULL DEFAULT '{}',
     status TEXT NOT NULL DEFAULT 'pending',  -- pending / accepted / refused
-    reviewed_by BIGINT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    reviewed_at TIMESTAMPTZ
+    reviewed_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at TEXT
 );
 
--- Panel admin : historique d'actions (pour le dashboard)
 CREATE TABLE IF NOT EXISTS admin_actions (
-    id SERIAL PRIMARY KEY,
-    guild_id BIGINT NOT NULL,
-    actor_id BIGINT NOT NULL,      -- 0 si action faite depuis le site
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER NOT NULL,
+    actor_id INTEGER NOT NULL,      -- 0 si action faite depuis le site
     source TEXT NOT NULL DEFAULT 'discord',  -- discord / web
     action TEXT NOT NULL,
-    details JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    details TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
 
 
-async def run_migrations(pool: asyncpg.Pool):
-    async with pool.acquire() as conn:
-        await conn.execute(SCHEMA)
+async def run_migrations(conn: aiosqlite.Connection):
+    await conn.executescript(SCHEMA)
+    await conn.commit()
     logger.info("Schéma de base de données vérifié/appliqué.")

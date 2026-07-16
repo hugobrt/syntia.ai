@@ -13,37 +13,26 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from db.database import get_pool
+from db.database import fetch_one, execute
 
 logger = logging.getLogger("Onboarding")
 
 
 async def get_config(guild_id: int) -> dict:
-    pool = get_pool()
-    row = await pool.fetchrow(
-        "SELECT * FROM server_config WHERE guild_id = $1", guild_id
-    )
+    row = await fetch_one("SELECT * FROM server_config WHERE guild_id = ?", (guild_id,))
     if row is None:
-        await pool.execute(
-            "INSERT INTO server_config (guild_id) VALUES ($1) ON CONFLICT DO NOTHING",
-            guild_id,
-        )
+        await execute("INSERT OR IGNORE INTO server_config (guild_id) VALUES (?)", (guild_id,))
         return {}
-    return dict(row)
+    return row
 
 
 async def set_config(guild_id: int, **fields):
-    pool = get_pool()
-    await pool.execute(
-        "INSERT INTO server_config (guild_id) VALUES ($1) ON CONFLICT DO NOTHING",
-        guild_id,
-    )
-    cols = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields.keys()))
+    await execute("INSERT OR IGNORE INTO server_config (guild_id) VALUES (?)", (guild_id,))
+    cols = ", ".join(f"{k} = ?" for k in fields.keys())
     values = list(fields.values())
-    await pool.execute(
-        f"UPDATE server_config SET {cols}, updated_at = now() WHERE guild_id = $1",
-        guild_id,
-        *values,
+    await execute(
+        f"UPDATE server_config SET {cols}, updated_at = datetime('now') WHERE guild_id = ?",
+        (*values, guild_id),
     )
 
 
@@ -96,16 +85,14 @@ class RulesView(discord.ui.View):
             )
             return
 
-        pool = get_pool()
-        await pool.execute(
+        await execute(
             """
             INSERT INTO members (guild_id, user_id, rules_accepted_at)
-            VALUES ($1, $2, now())
+            VALUES (?, ?, datetime('now'))
             ON CONFLICT (guild_id, user_id)
-            DO UPDATE SET rules_accepted_at = now()
+            DO UPDATE SET rules_accepted_at = datetime('now')
             """,
-            guild.id,
-            member.id,
+            (guild.id, member.id),
         )
 
         await interaction.response.send_message(
@@ -124,15 +111,13 @@ class Onboarding(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        pool = get_pool()
-        await pool.execute(
+        await execute(
             """
             INSERT INTO members (guild_id, user_id, joined_at)
-            VALUES ($1, $2, now())
+            VALUES (?, ?, datetime('now'))
             ON CONFLICT (guild_id, user_id) DO NOTHING
             """,
-            member.guild.id,
-            member.id,
+            (member.guild.id, member.id),
         )
 
         config = await get_config(member.guild.id)
