@@ -22,7 +22,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from config_store import init_config
-from api.app import app as fastapi_app, set_bot
+from app import app as fastapi_app, set_bot
 
 load_dotenv()
 
@@ -41,11 +41,11 @@ INTENTS.members = True
 INTENTS.message_content = True
 
 COGS = [
-    "cogs.onboarding",
-    "cogs.moderation",
-    # "cogs.profiles",   # à activer une fois porté
-    # "cogs.jobs",       # à activer une fois porté
-    # "cogs.admin_core", # à activer une fois porté
+    "onboarding",
+    "moderation",
+    # "profiles",   # à activer une fois porté
+    # "jobs",       # à activer une fois porté
+    # "admin_core", # à activer une fois porté
 ]
 
 
