@@ -6,9 +6,10 @@ même processus asyncio :
   1. Le bot Discord (discord.py)
   2. L'API + dashboard web (FastAPI, servi par uvicorn)
 
-Un seul service Render (Web Service), un seul fichier SQLite partagé.
-Render exige qu'un Web Service écoute sur $PORT -> c'est uvicorn qui
-s'en charge ici.
+Pas de BDD : la config tient dans un fichier JSON (config_store.py),
+et l'API lit directement le cache du bot pour tout le reste.
+
+Un seul service Render (Web Service), un seul processus.
 """
 
 import os
@@ -20,8 +21,8 @@ import uvicorn
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from db.database import init_db, close_db
-from api.app import app as fastapi_app
+from config_store import init_config
+from api.app import app as fastapi_app, set_bot
 
 load_dotenv()
 
@@ -80,6 +81,7 @@ class AdminBot(commands.Bot):
 
 
 bot = AdminBot()
+set_bot(bot)  # l'API peut désormais lire le cache du bot en direct
 
 
 async def run_bot():
@@ -102,14 +104,8 @@ async def run_api():
 
 
 async def main():
-    await init_db()
-    try:
-        # Les deux tournent en parallèle dans la même boucle asyncio.
-        # Si l'un des deux plante, on arrête tout proprement plutôt que
-        # de laisser le service tourner à moitié cassé.
-        await asyncio.gather(run_bot(), run_api())
-    finally:
-        await close_db()
+    init_config()
+    await asyncio.gather(run_bot(), run_api())
 
 
 if __name__ == "__main__":

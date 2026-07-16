@@ -4,7 +4,9 @@ COG ONBOARDING
 - Message de règlement avec bouton "J'accepte"
 - Attribution automatique du rôle membre à l'acceptation
 - Message de bienvenue à l'arrivée
-- Suivi en BDD de qui a accepté le règlement et quand
+
+Pas de BDD : le rôle attribué EST la preuve d'acceptation (visible
+directement sur le profil du membre côté Discord). Rien à dupliquer.
 """
 
 import logging
@@ -13,27 +15,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from db.database import fetch_one, execute
+from config_store import get_guild_config, set_guild_config
 
 logger = logging.getLogger("Onboarding")
-
-
-async def get_config(guild_id: int) -> dict:
-    row = await fetch_one("SELECT * FROM server_config WHERE guild_id = ?", (guild_id,))
-    if row is None:
-        await execute("INSERT OR IGNORE INTO server_config (guild_id) VALUES (?)", (guild_id,))
-        return {}
-    return row
-
-
-async def set_config(guild_id: int, **fields):
-    await execute("INSERT OR IGNORE INTO server_config (guild_id) VALUES (?)", (guild_id,))
-    cols = ", ".join(f"{k} = ?" for k in fields.keys())
-    values = list(fields.values())
-    await execute(
-        f"UPDATE server_config SET {cols}, updated_at = datetime('now') WHERE guild_id = ?",
-        (*values, guild_id),
-    )
 
 
 class RulesView(discord.ui.View):
@@ -51,7 +35,7 @@ class RulesView(discord.ui.View):
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = interaction.guild
         member = interaction.user
-        config = await get_config(guild.id)
+        config = get_guild_config(guild.id)
 
         role_id = config.get("member_role_id")
         if not role_id:
@@ -85,16 +69,6 @@ class RulesView(discord.ui.View):
             )
             return
 
-        await execute(
-            """
-            INSERT INTO members (guild_id, user_id, rules_accepted_at)
-            VALUES (?, ?, datetime('now'))
-            ON CONFLICT (guild_id, user_id)
-            DO UPDATE SET rules_accepted_at = datetime('now')
-            """,
-            (guild.id, member.id),
-        )
-
         await interaction.response.send_message(
             f"Bienvenue à bord ! Le rôle **{role.name}** t'a été attribué. 🚌",
             ephemeral=True,
@@ -111,16 +85,7 @@ class Onboarding(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        await execute(
-            """
-            INSERT INTO members (guild_id, user_id, joined_at)
-            VALUES (?, ?, datetime('now'))
-            ON CONFLICT (guild_id, user_id) DO NOTHING
-            """,
-            (member.guild.id, member.id),
-        )
-
-        config = await get_config(member.guild.id)
+        config = get_guild_config(member.guild.id)
         welcome_channel_id = config.get("welcome_channel_id")
         if not welcome_channel_id:
             return
@@ -161,7 +126,7 @@ class Onboarding(commands.Cog):
         salon_bienvenue: discord.TextChannel,
         role_membre: discord.Role,
     ):
-        await set_config(
+        await set_guild_config(
             interaction.guild.id,
             rules_channel_id=salon_reglement.id,
             welcome_channel_id=salon_bienvenue.id,
@@ -182,7 +147,7 @@ class Onboarding(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(texte="Contenu du règlement (Markdown supporté)")
     async def publier_reglement(self, interaction: discord.Interaction, texte: str):
-        config = await get_config(interaction.guild.id)
+        config = get_guild_config(interaction.guild.id)
         channel_id = config.get("rules_channel_id")
         channel = interaction.guild.get_channel(channel_id) if channel_id else interaction.channel
 

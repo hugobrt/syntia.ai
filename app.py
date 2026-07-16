@@ -1,12 +1,16 @@
 """
-API du dashboard — FastAPI.
-Tourne dans le même processus que le bot (même service Render),
-partage donc directement la connexion SQLite.
+API du dashboard — FastAPI, sans BDD.
 
-Cette première version expose de la lecture (stats, membres, sanctions,
-offres d'emploi) et une route de santé. On étoffera avec les actions
-d'écriture (créer une offre, traiter une candidature, etc.) et
-l'authentification OAuth2 Discord à l'étape suivante.
+Deux sources de données, aucune base :
+1. La config JSON (config_store) — salons/rôles configurés
+2. Le cache discord.py du bot lui-même, en direct — membres, rôles,
+   salons. Le bot tourne dans le même processus, donc l'API peut
+   accéder à `bot.get_guild(...)` sans latence ni duplication.
+
+Les logs de modération et les appels de ban ne sont PAS exposés ici :
+ils vivent dans les salons Discord dédiés, consultables directement
+sur Discord. Si un jour il faut les afficher sur le site, on ira les
+lire via l'historique du salon (bot.get_channel(...).history()).
 """
 
 import logging
@@ -14,7 +18,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from db.database import fetch_all, fetch_one
+from config_store import get_guild_config
 
 logger = logging.getLogger("API")
 
@@ -27,67 +31,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rempli par main.py au démarrage, pour que l'API puisse lire le cache du bot.
+bot_ref = {"bot": None}
+
+
+def set_bot(bot):
+    bot_ref["bot"] = bot
+
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "bot_ready": bot_ref["bot"] is not None and bot_ref["bot"].is_ready()}
 
 
-@app.get("/api/stats/{guild_id}")
+@app.get("/api/{guild_id}/config")
+async def guild_config(guild_id: int):
+    return get_guild_config(guild_id)
+
+
+@app.get("/api/{guild_id}/stats")
 async def guild_stats(guild_id: int):
-    members = await fetch_one(
-        "SELECT COUNT(*) as total, SUM(CASE WHEN rules_accepted_at IS NOT NULL THEN 1 ELSE 0 END) as accepted "
-        "FROM members WHERE guild_id = ?",
-        (guild_id,),
-    )
-    sanctions = await fetch_one(
-        "SELECT COUNT(*) as total FROM mod_logs WHERE guild_id = ?", (guild_id,)
-    )
-    open_jobs = await fetch_one(
-        "SELECT COUNT(*) as total FROM job_offers WHERE guild_id = ? AND status = 'open'", (guild_id,)
-    )
-    pending_appeals = await fetch_one(
-        "SELECT COUNT(*) as total FROM ban_appeals WHERE guild_id = ? AND status = 'pending'", (guild_id,)
-    )
+    bot = bot_ref["bot"]
+    if bot is None or not bot.is_ready():
+        raise HTTPException(status_code=503, detail="Le bot n'est pas encore connecté.")
+
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        raise HTTPException(status_code=404, detail="Serveur introuvable (le bot n'y est peut-être pas).")
+
+    bots_count = sum(1 for m in guild.members if m.bot)
     return {
-        "members_total": members["total"] if members else 0,
-        "members_accepted_rules": members["accepted"] if members else 0,
-        "sanctions_total": sanctions["total"] if sanctions else 0,
-        "jobs_open": open_jobs["total"] if open_jobs else 0,
-        "appeals_pending": pending_appeals["total"] if pending_appeals else 0,
+        "name": guild.name,
+        "members_total": guild.member_count,
+        "humans": guild.member_count - bots_count,
+        "bots": bots_count,
+        "channels": len(guild.channels),
+        "roles": len(guild.roles),
     }
 
 
-@app.get("/api/{guild_id}/mod-logs")
-async def mod_logs(guild_id: int, limit: int = 50):
-    return await fetch_all(
-        "SELECT * FROM mod_logs WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?",
-        (guild_id, limit),
-    )
+@app.get("/api/{guild_id}/members")
+async def guild_members(guild_id: int, limit: int = 100):
+    bot = bot_ref["bot"]
+    if bot is None or not bot.is_ready():
+        raise HTTPException(status_code=503, detail="Le bot n'est pas encore connecté.")
 
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        raise HTTPException(status_code=404, detail="Serveur introuvable.")
 
-@app.get("/api/{guild_id}/appeals")
-async def appeals(guild_id: int, status: str = "pending"):
-    return await fetch_all(
-        "SELECT * FROM ban_appeals WHERE guild_id = ? AND status = ? ORDER BY created_at DESC",
-        (guild_id, status),
-    )
-
-
-@app.get("/api/{guild_id}/jobs")
-async def jobs(guild_id: int):
-    return await fetch_all(
-        "SELECT * FROM job_offers WHERE guild_id = ? ORDER BY created_at DESC",
-        (guild_id,),
-    )
-
-
-@app.get("/api/{guild_id}/jobs/{job_id}/applications")
-async def job_applications(guild_id: int, job_id: int):
-    job = await fetch_one("SELECT * FROM job_offers WHERE id = ? AND guild_id = ?", (job_id, guild_id))
-    if job is None:
-        raise HTTPException(status_code=404, detail="Offre introuvable")
-    return await fetch_all(
-        "SELECT * FROM job_applications WHERE job_id = ? ORDER BY created_at DESC",
-        (job_id,),
-    )
+    members = list(guild.members)[:limit]
+    return [
+        {
+            "id": m.id,
+            "name": str(m),
+            "roles": [r.name for r in m.roles if r.name != "@everyone"],
+            "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+        }
+        for m in members
+    ]
