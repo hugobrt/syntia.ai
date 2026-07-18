@@ -45,7 +45,7 @@ app.add_middleware(
 
 if os.path.isdir("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=".")
 
 # Rempli par main.py au démarrage, pour que l'API puisse lire le cache du bot.
 bot_ref = {"bot": None}
