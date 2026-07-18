@@ -22,6 +22,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from config_store import init_config
+from profiles_store import init_profiles
+from jobs_store import init_jobs
 from app import app as fastapi_app, set_bot
 
 load_dotenv()
@@ -43,8 +45,8 @@ INTENTS.message_content = True
 COGS = [
     "onboarding",
     "moderation",
-    # "profiles",   # à activer une fois porté
-    # "jobs",       # à activer une fois porté
+    "profiles",
+    "jobs",
     # "admin_core", # à activer une fois porté
 ]
 
@@ -105,6 +107,8 @@ async def run_api():
 
 async def main():
     init_config()
+    init_profiles()
+    init_jobs()
     await asyncio.gather(run_bot(), run_api())
 
 

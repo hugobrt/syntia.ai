@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard — {{ guild_id }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+<nav class="bg-slate-800 px-6 py-4 flex items-center justify-between shadow">
+    <div class="flex items-center gap-3">
+        <span class="text-2xl">🚌</span>
+        <span class="font-bold text-lg">Dashboard Admin</span>
+    </div>
+    <div class="flex items-center gap-4 text-sm text-slate-300">
+        <span>Connecté : <span class="font-semibold text-white">{{ user.username }}</span></span>
+        <a href="/logout" class="text-red-400 hover:text-red-300">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-6xl mx-auto px-6 py-8">
+
+    <!-- Onglets -->
+    <div class="flex gap-2 mb-8 border-b border-slate-700">
+        <button class="tab-btn px-4 py-2 font-medium border-b-2 border-indigo-500 text-white" data-tab="stats">Statistiques</button>
+        <button class="tab-btn px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-white" data-tab="members">Membres</button>
+        <button class="tab-btn px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-white" data-tab="jobs">Offres d'emploi</button>
+        <button class="tab-btn px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-white" data-tab="config">Configuration</button>
+    </div>
+
+    <!-- STATS -->
+    <div id="tab-stats" class="tab-content grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-800 rounded-xl p-5">
+            <div class="text-slate-400 text-sm">Membres</div>
+            <div id="stat-members" class="text-3xl font-bold mt-1">—</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-5">
+            <div class="text-slate-400 text-sm">Humains / Bots</div>
+            <div id="stat-humans" class="text-3xl font-bold mt-1">—</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-5">
+            <div class="text-slate-400 text-sm">Salons</div>
+            <div id="stat-channels" class="text-3xl font-bold mt-1">—</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-5">
+            <div class="text-slate-400 text-sm">Rôles</div>
+            <div id="stat-roles" class="text-3xl font-bold mt-1">—</div>
+        </div>
+    </div>
+
+    <!-- MEMBRES -->
+    <div id="tab-members" class="tab-content hidden">
+        <div class="bg-slate-800 rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-700 text-slate-300">
+                    <tr>
+                        <th class="text-left px-4 py-3">Membre</th>
+                        <th class="text-left px-4 py-3">Rôles</th>
+                        <th class="text-left px-4 py-3">Arrivé le</th>
+                    </tr>
+                </thead>
+                <tbody id="members-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- OFFRES D'EMPLOI -->
+    <div id="tab-jobs" class="tab-content hidden space-y-4">
+        <div id="jobs-list" class="grid gap-4"></div>
+    </div>
+
+    <!-- CONFIGURATION -->
+    <div id="tab-config" class="tab-content hidden">
+        <form id="config-form" class="bg-slate-800 rounded-xl p-6 space-y-5 max-w-xl">
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Salon règlement</label>
+                <select name="rules_channel_id" class="channel-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Salon de bienvenue</label>
+                <select name="welcome_channel_id" class="channel-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Rôle membre (attribué à l'acceptation du règlement)</label>
+                <select name="member_role_id" class="role-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Salon des offres d'emploi</label>
+                <select name="jobs_channel_id" class="channel-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Salon des logs de modération / appels de ban</label>
+                <select name="mod_log_channel_id" class="channel-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-400 mb-1">Salon de suivi des candidatures</label>
+                <select name="application_log_channel_id" class="channel-select w-full bg-slate-700 rounded-lg px-3 py-2"></select>
+            </div>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 transition rounded-lg px-6 py-2 font-semibold">
+                Enregistrer
+            </button>
+            <span id="config-saved" class="ml-3 text-green-400 hidden">✅ Enregistré</span>
+        </form>
+    </div>
+
+</div>
+
+<script>
+const GUILD_ID = "{{ guild_id }}";
+
+// --- Navigation entre onglets ---
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => {
+            b.classList.remove("border-indigo-500", "text-white");
+            b.classList.add("border-transparent", "text-slate-400");
+        });
+        btn.classList.add("border-indigo-500", "text-white");
+        btn.classList.remove("border-transparent", "text-slate-400");
+
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
+        document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+
+        if (btn.dataset.tab === "members") loadMembers();
+        if (btn.dataset.tab === "jobs") loadJobs();
+        if (btn.dataset.tab === "config") loadConfig();
+    });
+});
+
+// --- Stats ---
+async function loadStats() {
+    const res = await fetch(`/api/${GUILD_ID}/stats`);
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById("stat-members").textContent = d.members_total;
+    document.getElementById("stat-humans").textContent = `${d.humans} / ${d.bots}`;
+    document.getElementById("stat-channels").textContent = d.channels;
+    document.getElementById("stat-roles").textContent = d.roles;
+}
+
+// --- Membres ---
+async function loadMembers() {
+    const res = await fetch(`/api/${GUILD_ID}/members?limit=200`);
+    if (!res.ok) return;
+    const members = await res.json();
+    const body = document.getElementById("members-body");
+    body.innerHTML = members.map(m => `
+        <tr class="border-t border-slate-700">
+            <td class="px-4 py-2">${m.name}</td>
+            <td class="px-4 py-2 text-slate-400">${m.roles.join(", ") || "—"}</td>
+            <td class="px-4 py-2 text-slate-400">${m.joined_at ? new Date(m.joined_at).toLocaleDateString("fr-FR") : "—"}</td>
+        </tr>
+    `).join("");
+}
+
+// --- Offres d'emploi ---
+async function loadJobs() {
+    const res = await fetch(`/api/${GUILD_ID}/jobs`);
+    if (!res.ok) return;
+    const jobs = await res.json();
+    const container = document.getElementById("jobs-list");
+    if (jobs.length === 0) {
+        container.innerHTML = `<p class="text-slate-400">Aucune offre publiée pour l'instant.</p>`;
+        return;
+    }
+    container.innerHTML = jobs.map(job => `
+        <div class="bg-slate-800 rounded-xl p-5">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="font-bold text-lg">${job.title} <span class="text-sm font-normal text-slate-400">#${job.id}</span></h3>
+                    <p class="text-slate-400 text-sm mt-1">${job.description}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full ${job.status === 'open' ? 'bg-green-700' : 'bg-slate-600'}">
+                    ${job.status === 'open' ? 'Ouvert' : 'Clôturé'}
+                </span>
+            </div>
+            <div class="mt-3 text-sm text-slate-300">
+                ${job.applications.length} candidature(s)
+                ${job.applications.length ? `
+                <ul class="mt-2 space-y-1">
+                    ${job.applications.map(a => `
+                        <li class="text-slate-400">
+                            👤 ${a.user_id} —
+                            <span class="${a.status === 'accepted' ? 'text-green-400' : a.status === 'refused' ? 'text-red-400' : 'text-yellow-400'}">${a.status}</span>
+                        </li>
+                    `).join("")}
+                </ul>` : ""}
+            </div>
+            ${job.status === 'open' ? `<button onclick="closeJob(${job.id})" class="mt-3 text-sm bg-red-700 hover:bg-red-600 transition rounded-lg px-3 py-1">Clôturer</button>` : ""}
+        </div>
+    `).join("");
+}
+
+async function closeJob(jobId) {
+    await fetch(`/api/${GUILD_ID}/jobs/${jobId}/close`, { method: "POST" });
+    loadJobs();
+}
+
+// --- Configuration ---
+async function loadConfig() {
+    const [channelsRes, rolesRes, configRes] = await Promise.all([
+        fetch(`/api/${GUILD_ID}/channels`),
+        fetch(`/api/${GUILD_ID}/roles`),
+        fetch(`/api/${GUILD_ID}/config`),
+    ]);
+    const channels = await channelsRes.json();
+    const roles = await rolesRes.json();
+    const config = await configRes.json();
+
+    document.querySelectorAll(".channel-select").forEach(select => {
+        const current = config[select.name];
+        select.innerHTML = `<option value="">— Aucun —</option>` + channels.map(c =>
+            `<option value="${c.id}" ${c.id == current ? "selected" : ""}>#${c.name}</option>`
+        ).join("");
+    });
+    document.querySelectorAll(".role-select").forEach(select => {
+        const current = config[select.name];
+        select.innerHTML = `<option value="">— Aucun —</option>` + roles.map(r =>
+            `<option value="${r.id}" ${r.id == current ? "selected" : ""}>${r.name}</option>`
+        ).join("");
+    });
+}
+
+document.getElementById("config-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const body = Object.fromEntries(formData.entries());
+    await fetch(`/api/${GUILD_ID}/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    const saved = document.getElementById("config-saved");
+    saved.classList.remove("hidden");
+    setTimeout(() => saved.classList.add("hidden"), 2000);
+});
+
+loadStats();
+</script>
+
+</body>
+</html>
