@@ -1,62 +1,28 @@
 """
-Config du bot — stockage JSON minimal, sans BDD.
-
-Il n'y a qu'une seule chose qui a vraiment besoin de survivre à un
-redémarrage : la config par serveur (quel salon, quel rôle...).
-Tout le reste (logs de modération, appels de ban, offres d'emploi)
-vit directement dans Discord — le salon de logs EST l'historique,
-pas besoin de le dupliquer dans une base de données.
-
-Un seul fichier JSON, chargé en mémoire au démarrage, réécrit à
-chaque changement. Largement suffisant pour un seul serveur.
+Config du serveur (presets : salons, rôles) — Postgres (Aiven).
 """
 
-import os
-import json
-import asyncio
 import logging
 
-logger = logging.getLogger("Config")
+from database import fetch_one, execute
 
-CONFIG_PATH = os.getenv("CONFIG_PATH", "data/config.json")
-
-_lock = asyncio.Lock()
-_config: dict = {}
+logger = logging.getLogger("ConfigStore")
 
 
-def _load_from_disk() -> dict:
-    if os.path.exists(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.error(f"Erreur lecture config : {e}")
-    return {}
-
-
-def _save_to_disk(data: dict):
-    os.makedirs(os.path.dirname(CONFIG_PATH) or ".", exist_ok=True)
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-def init_config():
-    global _config
-    _config = _load_from_disk()
-    logger.info(f"Config chargée ({CONFIG_PATH}) : {len(_config)} serveur(s) configuré(s).")
-
-
-def get_guild_config(guild_id: int) -> dict:
-    return _config.get(str(guild_id), {})
+async def get_guild_config(guild_id: int) -> dict:
+    row = await fetch_one("SELECT * FROM server_config WHERE guild_id = $1", guild_id)
+    if row is None:
+        await execute("INSERT INTO server_config (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild_id)
+        return {}
+    return row
 
 
 async def set_guild_config(guild_id: int, **fields):
-    async with _lock:
-        key = str(guild_id)
-        _config.setdefault(key, {})
-        _config[key].update(fields)
-        _save_to_disk(_config)
-
-
-def all_guild_configs() -> dict:
-    return dict(_config)
+    await execute("INSERT INTO server_config (guild_id) VALUES ($1) ON CONFLICT DO NOTHING", guild_id)
+    cols = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(fields.keys()))
+    values = list(fields.values())
+    await execute(
+        f"UPDATE server_config SET {cols}, updated_at = now() WHERE guild_id = $1",
+        guild_id,
+        *values,
+    )

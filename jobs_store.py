@@ -1,120 +1,80 @@
 """
-Stockage des offres d'emploi et candidatures — fichier JSON.
-Même principe que config_store.py / profiles_store.py : pas de BDD,
-juste ce qu'il faut pour retrouver une offre/candidature après un
-redémarrage du bot (les boutons Discord seuls ne suffisent pas ici
-car il faut pouvoir lister/clôturer des offres depuis une commande
-ou plus tard depuis le dashboard).
+Offres d'emploi et candidatures — Postgres (Aiven).
+get_job() retourne le job avec sa liste de candidatures incluse sous
+la clé "applications", pour ne rien changer côté appelants.
 """
 
-import os
-import json
-import asyncio
 import logging
+
+from database import fetch_one, fetch_all, execute, fetch_val
 
 logger = logging.getLogger("JobsStore")
 
-JOBS_PATH = os.getenv("JOBS_PATH", "data/jobs.json")
 
-_lock = asyncio.Lock()
-_data: dict = {"next_id": 1, "jobs": {}}
-
-
-def _load_from_disk() -> dict:
-    if os.path.exists(JOBS_PATH):
-        try:
-            with open(JOBS_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.error(f"Erreur lecture offres : {e}")
-    return {"next_id": 1, "jobs": {}}
-
-
-def _save_to_disk():
-    os.makedirs(os.path.dirname(JOBS_PATH) or ".", exist_ok=True)
-    with open(JOBS_PATH, "w", encoding="utf-8") as f:
-        json.dump(_data, f, indent=2, ensure_ascii=False)
-
-
-def init_jobs():
-    global _data
-    _data = _load_from_disk()
-    logger.info(f"Offres chargées ({JOBS_PATH}) : {len(_data['jobs'])} offre(s).")
+async def _with_applications(job: dict) -> dict:
+    apps = await fetch_all(
+        "SELECT user_id, motivation, disponibilite, status FROM job_applications WHERE job_id = $1 ORDER BY created_at",
+        job["id"],
+    )
+    job["applications"] = apps
+    return job
 
 
 async def create_job(guild_id: int, title: str, description: str, role_id: int | None, posted_by: int) -> int:
-    async with _lock:
-        job_id = _data["next_id"]
-        _data["next_id"] += 1
-        _data["jobs"][str(job_id)] = {
-            "id": job_id,
-            "guild_id": guild_id,
-            "title": title,
-            "description": description,
-            "role_id": role_id,
-            "posted_by": posted_by,
-            "status": "open",
-            "message_id": None,
-            "channel_id": None,
-            "applications": [],  # liste de {user_id, motivation, disponibilite, status}
-        }
-        _save_to_disk()
-        return job_id
+    job_id = await fetch_val(
+        "INSERT INTO job_offers (guild_id, title, description, role_id, posted_by) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        guild_id, title, description, role_id, posted_by,
+    )
+    return job_id
 
 
 async def attach_message(job_id: int, channel_id: int, message_id: int):
-    async with _lock:
-        job = _data["jobs"].get(str(job_id))
-        if job:
-            job["channel_id"] = channel_id
-            job["message_id"] = message_id
-            _save_to_disk()
+    await execute(
+        "UPDATE job_offers SET channel_id = $1, message_id = $2 WHERE id = $3",
+        channel_id, message_id, job_id,
+    )
 
 
-def get_job(job_id: int) -> dict | None:
-    return _data["jobs"].get(str(job_id))
+async def get_job(job_id: int) -> dict | None:
+    job = await fetch_one("SELECT * FROM job_offers WHERE id = $1", job_id)
+    if job is None:
+        return None
+    return await _with_applications(job)
 
 
-def list_jobs(guild_id: int, status: str | None = None) -> list[dict]:
-    jobs = [j for j in _data["jobs"].values() if j["guild_id"] == guild_id]
+async def list_jobs(guild_id: int, status: str | None = None) -> list[dict]:
     if status:
-        jobs = [j for j in jobs if j["status"] == status]
-    return sorted(jobs, key=lambda j: j["id"], reverse=True)
+        jobs = await fetch_all(
+            "SELECT * FROM job_offers WHERE guild_id = $1 AND status = $2 ORDER BY id DESC",
+            guild_id, status,
+        )
+    else:
+        jobs = await fetch_all(
+            "SELECT * FROM job_offers WHERE guild_id = $1 ORDER BY id DESC",
+            guild_id,
+        )
+    return [await _with_applications(j) for j in jobs]
 
 
 async def close_job(job_id: int):
-    async with _lock:
-        job = _data["jobs"].get(str(job_id))
-        if job:
-            job["status"] = "closed"
-            _save_to_disk()
+    await execute("UPDATE job_offers SET status = 'closed' WHERE id = $1", job_id)
 
 
 async def add_application(job_id: int, user_id: int, motivation: str, disponibilite: str) -> bool:
-    """Retourne False si l'utilisateur a déjà postulé à cette offre."""
-    async with _lock:
-        job = _data["jobs"].get(str(job_id))
-        if job is None:
-            return False
-        if any(a["user_id"] == user_id for a in job["applications"]):
-            return False
-        job["applications"].append({
-            "user_id": user_id,
-            "motivation": motivation,
-            "disponibilite": disponibilite,
-            "status": "pending",
-        })
-        _save_to_disk()
-        return True
+    existing = await fetch_one(
+        "SELECT id FROM job_applications WHERE job_id = $1 AND user_id = $2", job_id, user_id
+    )
+    if existing:
+        return False
+    await execute(
+        "INSERT INTO job_applications (job_id, user_id, motivation, disponibilite) VALUES ($1, $2, $3, $4)",
+        job_id, user_id, motivation, disponibilite,
+    )
+    return True
 
 
 async def set_application_status(job_id: int, user_id: int, status: str):
-    async with _lock:
-        job = _data["jobs"].get(str(job_id))
-        if job is None:
-            return
-        for app in job["applications"]:
-            if app["user_id"] == user_id:
-                app["status"] = status
-                break
-        _save_to_disk()
+    await execute(
+        "UPDATE job_applications SET status = $1 WHERE job_id = $2 AND user_id = $3",
+        status, job_id, user_id,
+    )

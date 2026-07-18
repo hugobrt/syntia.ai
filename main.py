@@ -6,8 +6,8 @@ même processus asyncio :
   1. Le bot Discord (discord.py)
   2. L'API + dashboard web (FastAPI, servi par uvicorn)
 
-Pas de BDD : la config tient dans un fichier JSON (config_store.py),
-et l'API lit directement le cache du bot pour tout le reste.
+Config serveur et offres d'emploi en Postgres (Aiven), via database.py.
+Les profils restent en JSON (profiles_store.py).
 
 Un seul service Render (Web Service), un seul processus.
 """
@@ -21,9 +21,8 @@ import uvicorn
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from config_store import init_config
+from database import init_db, close_db
 from profiles_store import init_profiles
-from jobs_store import init_jobs
 from app import app as fastapi_app, set_bot
 
 load_dotenv()
@@ -106,10 +105,12 @@ async def run_api():
 
 
 async def main():
-    init_config()
+    await init_db()
     init_profiles()
-    init_jobs()
-    await asyncio.gather(run_bot(), run_api())
+    try:
+        await asyncio.gather(run_bot(), run_api())
+    finally:
+        await close_db()
 
 
 if __name__ == "__main__":
